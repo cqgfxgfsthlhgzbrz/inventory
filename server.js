@@ -6,7 +6,6 @@ const PORT = process.env.PORT || 3000;
 const BLOB_ID = process.env.BLOB_ID || '019f4c85-55fd-77f7-939b-15b52add4bce';
 const BLOB_URL = `https://jsonblob.com/api/jsonBlob/${BLOB_ID}`;
 
-// Default data as fallback
 const defaultData = {
   version: 1,
   main: [
@@ -27,24 +26,20 @@ const defaultData = {
   delivery: []
 };
 
-// In-memory cache to reduce API calls
 let cache = null;
-let cacheVersion = -1;
 
 async function loadFromBlob() {
   try {
     const res = await fetch(BLOB_URL, {
       headers: { 'Accept': 'application/json' },
-      signal: AbortSignal.timeout(10000)
+      signal: AbortSignal.timeout(8000)
     });
     if (!res.ok) throw new Error('Blob read failed: ' + res.status);
     const data = await res.json();
     cache = data;
-    cacheVersion = data.version || 0;
     return data;
   } catch(e) {
     console.error('Load error:', e.message);
-    // Return cache if available, otherwise default
     if (cache) return JSON.parse(JSON.stringify(cache));
     return JSON.parse(JSON.stringify(defaultData));
   }
@@ -56,11 +51,10 @@ async function saveToBlob(data) {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json; charset=utf-8' },
       body: JSON.stringify(data),
-      signal: AbortSignal.timeout(10000)
+      signal: AbortSignal.timeout(8000)
     });
     if (!res.ok) throw new Error('Blob write failed: ' + res.status);
     cache = data;
-    cacheVersion = data.version;
     return true;
   } catch(e) {
     console.error('Save error:', e.message);
@@ -68,33 +62,14 @@ async function saveToBlob(data) {
   }
 }
 
-const MIME = {
-  '.html': 'text/html;charset=utf-8',
-  '.js': 'text/javascript',
-  '.css': 'text/css',
-  '.json': 'application/json',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.svg': 'image/svg+xml'
-};
-
-function serveStatic(req, res) {
-  let filePath = path.join(__dirname, req.url === '/' ? 'index.html' : decodeURIComponent(req.url.split('?')[0]));
-  if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
-    let ext = path.extname(filePath);
-    res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' });
-    res.end(fs.readFileSync(filePath));
-  } else {
-    res.writeHead(200, { 'Content-Type': 'text/html;charset=utf-8' });
-    res.end(fs.readFileSync(path.join(__dirname, 'index.html')));
-  }
+function setCORS(res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 
-function json(res, data, code) {
-  res.writeHead(code || 200, {
-    'Content-Type': 'application/json;charset=utf-8',
-    'Access-Control-Allow-Origin': '*'
-  });
+function jsonReply(res, data, code) {
+  res.writeHead(code || 200, { 'Content-Type': 'application/json;charset=utf-8', 'Access-Control-Allow-Origin': '*' });
   res.end(JSON.stringify(data));
 }
 
@@ -108,36 +83,35 @@ function readBody(req) {
   });
 }
 
-const server = http.createServer(async (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+// Main request handler - used by both Vercel serverless and local HTTP server
+async function handleRequest(req, res) {
+  setCORS(res);
   if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
   let url = req.url.split('?')[0];
   let parts = url.split('/').filter(Boolean);
 
-  // API: GET /api/version
+  // GET /api/version
   if (req.method === 'GET' && url === '/api/version') {
     try {
       let d = await loadFromBlob();
-      return json(res, { version: d.version });
+      return jsonReply(res, { version: d.version });
     } catch(e) {
-      return json(res, { version: 1 }, 500);
+      return jsonReply(res, { version: 1 });
     }
   }
 
-  // API: GET /api/data
+  // GET /api/data
   if (req.method === 'GET' && url === '/api/data') {
     try {
       let d = await loadFromBlob();
-      return json(res, d);
+      return jsonReply(res, d);
     } catch(e) {
-      return json(res, { error: 'Failed to load data' }, 500);
+      return jsonReply(res, { error: 'Failed to load data' }, 500);
     }
   }
 
-  // API: POST /api/records
+  // POST /api/records
   if (req.method === 'POST' && url === '/api/records') {
     let b = await readBody(req);
     let d = await loadFromBlob();
@@ -147,11 +121,11 @@ const server = http.createServer(async (req, res) => {
     d[b.sheet || 'main'].push(rec);
     d.version = (d.version || 0) + 1;
     let ok = await saveToBlob(d);
-    if (!ok) return json(res, { error: 'Save failed' }, 500);
-    return json(res, { success: true, record: rec, version: d.version });
+    if (!ok) return jsonReply(res, { error: 'Save failed' }, 500);
+    return jsonReply(res, { success: true, record: rec, version: d.version });
   }
 
-  // API: PUT /api/records/:sheet/:id/field
+  // PUT /api/records/:sheet/:id/field
   if (req.method === 'PUT' && parts.length >= 5 && parts[0] === 'api' && parts[1] === 'records' && parts[4] === 'field') {
     let b = await readBody(req);
     let d = await loadFromBlob();
@@ -161,33 +135,47 @@ const server = http.createServer(async (req, res) => {
       rec[b.field] = b.value;
       d.version = (d.version || 0) + 1;
       let ok = await saveToBlob(d);
-      if (!ok) return json(res, { error: 'Save failed' }, 500);
-      return json(res, { success: true, record: rec, version: d.version });
+      if (!ok) return jsonReply(res, { error: 'Save failed' }, 500);
+      return jsonReply(res, { success: true, record: rec, version: d.version });
     }
-    res.writeHead(404); res.end('not found'); return;
+    res.writeHead(404, { 'Access-Control-Allow-Origin': '*' });
+    res.end('not found');
+    return;
   }
 
-  // API: DELETE /api/records/:sheet/:id
+  // DELETE /api/records/:sheet/:id
   if (req.method === 'DELETE' && parts.length === 4 && parts[0] === 'api' && parts[1] === 'records') {
     let d = await loadFromBlob();
     let sheet = parts[2], rid = parseInt(parts[3]);
     d[sheet] = (d[sheet] || []).filter(r => r.id !== rid);
     d.version = (d.version || 0) + 1;
     let ok = await saveToBlob(d);
-    if (!ok) return json(res, { error: 'Save failed' }, 500);
-    return json(res, { success: true, version: d.version });
+    if (!ok) return jsonReply(res, { error: 'Save failed' }, 500);
+    return jsonReply(res, { success: true, version: d.version });
   }
 
-  // Static files
-  serveStatic(req, res);
-});
+  // 404 for unknown API routes
+  if (url.startsWith('/api/')) {
+    res.writeHead(404, { 'Content-Type': 'text/plain', 'Access-Control-Allow-Origin': '*' });
+    res.end('API not found');
+    return;
+  }
 
-// Vercel serverless support
+  // Serve index.html for all other requests
+  let htmlPath = path.join(__dirname, 'index.html');
+  if (fs.existsSync(htmlPath)) {
+    res.writeHead(200, { 'Content-Type': 'text/html;charset=utf-8' });
+    res.end(fs.readFileSync(htmlPath));
+  } else {
+    res.writeHead(404, { 'Content-Type': 'text/plain' });
+    res.end('Not found');
+  }
+}
+
+// Vercel serverless: export handler directly
 if (process.env.VERCEL) {
-  module.exports = async (req, res) => {
-    await new Promise((resolve) => server.emit('request', req, res));
-    return new Promise((resolve) => res.on('finish', resolve));
-  };
+  module.exports = handleRequest;
 } else {
-  server.listen(PORT, () => console.log('Server running on port ' + PORT));
+  // Local development: create HTTP server
+  http.createServer(handleRequest).listen(PORT, () => console.log('Server running on port ' + PORT));
 }
