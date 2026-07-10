@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>影棚样衣出入库管理系统</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#f5f6f8;--card-bg:#fff;--text:#1a1a2e;--text-secondary:#666;--border:#e8ecf1;--primary:#4f6ef7;--primary-light:#eef1fe;--success:#22c55e;--danger:#ef4444;--warning:#f59e0b;--radius:12px;--shadow:0 1px 3px rgba(0,0,0,.06);--shadow-lg:0 4px 16px rgba(0,0,0,.08)}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);line-height:1.6;min-height:100vh}
+
+/* header */
+.header{background:var(--card-bg);border-bottom:1px solid var(--border);padding:0 28px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:var(--shadow)}
+.header-left{display:flex;align-items:center;gap:16px}
+.header h1{font-size:18px;font-weight:700;display:flex;align-items:center;gap:10px;white-space:nowrap}
+.header h1 span.icon{font-size:22px}
+.header-actions{display:flex;gap:10px;align-items:center}
+.online-dot{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text-secondary);padding:4px 12px;border-radius:20px;background:#f3f4f6}
+.online-dot .dot{width:8px;height:8px;border-radius:50%}
+.online-dot .dot.on{background:var(--success);animation:pulse 2s infinite}
+.online-dot .dot.off{background:#d1d5db}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.user-badge{font-size:12px;padding:4px 10px;border-radius:6px;background:var(--primary-light);color:var(--primary);font-weight:600;cursor:pointer;border:none;font-family:inherit}
+.user-badge:hover{background:#dce4fd}
+
+/* buttons */
+.btn{padding:9px 18px;border-radius:8px;border:none;font-size:14px;font-weight:600;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:6px;font-family:inherit}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:#3b5de7;transform:translateY(-1px);box-shadow:0 2px 8px rgba(79,110,247,.35)}
+.btn-outline{background:#fff;color:var(--text);border:1.5px solid var(--border)}
+.btn-outline:hover{border-color:var(--primary);color:var(--primary);background:var(--primary-light)}
+.btn-sm{padding:5px 12px;font-size:12px}
+.btn-xs{padding:3px 8px;font-size:11px}
+.btn-danger{background:#fff;color:var(--danger);border:1px solid #fecaca}
+.btn-danger:hover{background:#fef2f2}
+.btn-refresh{background:#fff;color:var(--success);border:1.5px solid #bbf7d0}
+.btn-refresh:hover{background:#ecfdf5}
+
+/* main */
+.main{max-width:1500px;margin:0 auto;padding:24px 28px}
+
+/* stats */
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px}
+.stat-card{background:var(--card-bg);border-radius:var(--radius);padding:20px 24px;box-shadow:var(--shadow);display:flex;align-items:center;gap:16px;transition:transform .15s}
+.stat-card:hover{transform:translateY(-2px)}
+.stat-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.stat-icon.blue{background:#eef1fe}.stat-icon.green{background:#ecfdf5}.stat-icon.orange{background:#fff7ed}.stat-icon.purple{background:#f5f3ff}.stat-icon.teal{background:#f0fdfa}
+.stat-info .stat-num{font-size:26px;font-weight:800}
+.stat-info .stat-label{font-size:13px;color:var(--text-secondary);margin-top:2px}
+
+/* shoot type tabs */
+.type-tabs{display:flex;gap:0;margin-bottom:16px}
+.type-tab{padding:9px 22px;font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid var(--border);background:#fff;color:var(--text-secondary);font-family:inherit;transition:all .15s}
+.type-tab:first-child{border-radius:10px 0 0 10px}
+.type-tab:last-child{border-radius:0 10px 10px 0}
+.type-tab:not(:first-child){border-left:none}
+.type-tab.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+
+/* filter */
+.filter-section{background:var(--card-bg);border-radius:var(--radius);padding:16px 20px;margin-bottom:16px;box-shadow:var(--shadow);display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.filter-label{font-size:13px;font-weight:600;color:var(--text-secondary);white-space:nowrap;display:flex;align-items:center;gap:6px}
+.filter-chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{padding:6px 14px;border-radius:20px;font-size:13px;font-weight:500;cursor:pointer;border:1.5px solid var(--border);background:#fff;transition:all .15s;white-space:nowrap;font-family:inherit}
+.chip:hover{border-color:var(--primary);color:var(--primary)}
+.chip.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+.chip-all{font-weight:600}
+.chip-count{opacity:.7;font-size:11px;margin-left:2px}
+.chip-count.active-count{opacity:1}
+.search-box{margin-left:auto;display:flex;align-items:center;gap:8px}
+.search-input{padding:7px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;width:200px;outline:none;font-family:inherit;transition:border-color .15s}
+.search-input:focus{border-color:var(--primary)}
+.search-clear{background:none;border:none;cursor:pointer;font-size:16px;color:#9ca3af;padding:2px 6px;display:none}
+.search-clear:hover{color:var(--danger)}
+.search-clear.visible{display:inline}
+
+/* table */
+.table-container{background:var(--card-bg);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+.table-top{padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+.table-top h3{font-size:15px;font-weight:700;display:flex;align-items:center}
+.table-top .count{font-size:13px;color:var(--text-secondary)}
+.table-top .hint{font-size:11px;color:#9ca3af;margin-left:12px}
+.table-scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px;table-layout:auto}
+thead{background:#fafbfc}
+th{padding:12px 10px;text-align:left;font-weight:700;font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.3px;white-space:nowrap;border-bottom:2px solid var(--border)}
+th.sortable{cursor:pointer;user-select:none}
+th.sortable:hover{color:var(--primary)}
+th .sort-arrow{margin-left:3px;font-size:9px}
+td{padding:8px 10px;border-bottom:1px solid #f3f4f6;white-space:nowrap;position:relative}
+tr:hover td{background:#fafbfd}
+tr.row-updated td{animation:flashRow 1.5s ease}
+@keyframes flashRow{0%{background:#dbeafe}100%{background:transparent}}
+td.style-cell{font-weight:600;color:var(--text)}
+td.date-cell{font-family:"SF Mono","Consolas",monospace;font-size:12px;font-weight:600}
+td.qty-cell{font-weight:400}
+
+/* editable */
+td.editable{cursor:pointer;position:relative;transition:background .1s}
+td.editable:hover{outline:2px dashed #c7d2fe;outline-offset:-2px;background:#fafbff}
+td.editable:hover::after{content:'✎';position:absolute;right:3px;top:3px;font-size:9px;color:#9ca3af;pointer-events:none}
+td.editing{padding:0!important}
+td.editing input,td.editing select{width:100%;height:100%;border:2px solid var(--primary);padding:6px 10px;font-size:13px;font-family:inherit;outline:none;border-radius:4px;background:#fff;min-width:70px}
+
+/* dropdown menu */
+.dropdown-menu{display:none;position:fixed;z-index:50;background:#fff;border:1.5px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);min-width:150px;overflow:hidden;animation:dropIn .12s ease}
+@keyframes dropIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+.dropdown-menu.show{display:block}
+.dropdown-item{padding:9px 16px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:10px;transition:background .1s}
+.dropdown-item:hover{background:#f5f6f8}
+.dropdown-item.active{background:var(--primary-light);color:var(--primary);font-weight:600}
+.dropdown-backdrop{position:fixed;inset:0;z-index:49}
+
+/* badges */
+.badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600}
+.badge-yes{background:#ecfdf5;color:#059669}
+.badge-no{background:#fef2f2;color:#dc2626}
+.badge-none{background:#f3f4f6;color:#9ca3af}
+.badge-studio{background:#eef1fe;color:#3b5de7}
+.badge-office{background:#fff7ed;color:#d97706}
+.badge-warehouse{background:#ecfdf5;color:#059669}
+.badge-draft{background:#f5f3ff;color:#7c3aed}
+.badge-set{background:#f0fdfa;color:#0d9488}
+
+/* add row */
+tr.add-row td{border-top:1px dashed #e5e7eb;background:transparent}
+tr.add-row:hover td{background:#fafbff}
+
+.img-upload-cell{cursor:pointer;text-align:center;vertical-align:middle;transition:background .1s;min-width:52px}
+.img-upload-cell:hover{background:#f5f6f8}
+
+.empty-state{text-align:center;padding:60px 20px;color:var(--text-secondary)}
+.empty-state .empty-icon{font-size:48px;margin-bottom:12px}
+
+/* modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;display:flex;align-items:center;justify-content:center;animation:fadeIn .15s}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.modal{background:#fff;border-radius:16px;width:580px;max-height:85vh;overflow-y:auto;box-shadow:var(--shadow-lg);animation:slideUp .2s}
+@keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-header{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.modal-header h2{font-size:17px;font-weight:700}
+.modal-close{width:32px;height:32px;border-radius:8px;border:none;background:#f3f4f6;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center}
+.modal-close:hover{background:#e5e7eb}
+.modal-body{padding:20px 24px}
+.modal-footer{padding:16px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:13px;font-weight:600;margin-bottom:6px}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:9px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;outline:none}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--primary)}
+.form-group textarea{resize:vertical;min-height:60px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+
+.toast{position:fixed;top:20px;right:20px;padding:12px 20px;border-radius:10px;font-size:14px;font-weight:600;color:#fff;z-index:300;animation:slideIn .25s;box-shadow:var(--shadow-lg)}
+@keyframes slideIn{from{transform:translateX(100px);opacity:0}}
+.toast-success{background:var(--success)}.toast-error{background:var(--danger)}
+.sync-toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1a1a2e;color:#fff;padding:10px 24px;border-radius:20px;font-size:13px;z-index:300;animation:syncSlide .25s;box-shadow:0 4px 12px rgba(0,0,0,.2)}
+@keyframes syncSlide{from{transform:translateX(-50%) translateY(20px);opacity:0}}
+
+.sheet-tabs{display:flex;gap:4px;margin-bottom:16px}
+.sheet-tab{padding:8px 20px;border-radius:8px 8px 0 0;font-size:13px;font-weight:600;cursor:pointer;border:none;background:#e8ecf1;color:var(--text-secondary);font-family:inherit;transition:all .15s}
+.sheet-tab.active{background:var(--card-bg);color:var(--primary);box-shadow:var(--shadow)}
+
+@media(max-width:1200px){.stats-row{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:768px){.stats-row{grid-template-columns:repeat(2,1fr)}.filter-section{flex-direction:column;align-items:flex-start}.search-box{margin-left:0;width:100%}.search-input{width:100%}.header{padding:0 16px;flex-wrap:wrap;height:auto;padding-top:10px;padding-bottom:10px}.main{padding:16px}.form-row{grid-template-columns:1fr}.modal{width:95vw}.header-actions{flex-wrap:wrap}}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-left">
+    <h1><span class="icon">👔</span>影棚样衣出入库管理系统</h1>
+    <div class="online-dot" id="onlineIndicator"><span class="dot off"></span><span id="onlineText"></span></div>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-refresh btn-sm" onclick="loadAll()">🔄 刷新</button>
+    <button class="btn btn-outline btn-sm" onclick="exportData()">📥 导出</button>
+    <button class="btn btn-primary" onclick="openAddModal()">＋ 新增记录</button>
+  </div>
+</header>
+
+<main class="main">
+  <!-- 拍摄类型切换 -->
+  <div class="type-tabs" id="typeTabs">
+    <button class="type-tab active" data-type="" onclick="setShootType('')">📋 全部</button>
+    <button class="type-tab" data-type="定稿样拍摄" onclick="setShootType('定稿样拍摄')">📸 定稿样拍摄</button>
+    <button class="type-tab" data-type="套图拍摄" onclick="setShootType('套图拍摄')">🖼 套图拍摄</button>
+  </div>
+
+  <div class="stats-row" id="statsRow"></div>
+
+  <div class="filter-section">
+    <span class="filter-label">🔍 款式筛选</span>
+    <input type="text" class="search-input" id="searchInput" placeholder="输入款式号搜索，如：DC1015、TD1002..." style="flex:1;max-width:400px" oninput="doSearch()">
+    <button class="search-clear" id="searchClear" onclick="clearSearch()">✕</button>
+  </div>
+
+  <div class="table-container">
+    <div class="table-top">
+      <h3 id="tableTitle">📊 记录列表</h3>
+      <span class="count" id="recordCount">共 0 条</span>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr>
+          <th style="width:36px">#</th>
+          <th class="sortable" onclick="sortTable('date')" style="width:110px">入库日期 ⇅</th>
+          <th style="width:125px">款式</th>
+          <th style="min-width:140px">数量</th>
+          <th style="width:75px">是否齐色</th>
+          <th style="width:85px">入库交付人</th>
+          <th class="sortable" onclick="sortTable('outDate')" style="width:110px">出库日期 ⇅</th>
+          <th style="width:80px">出库交付人</th>
+          <th style="width:80px">目前位置</th>
+          <th style="width:75px">图片交付</th>
+          <th style="width:85px">拍摄类型</th>
+          <th style="min-width:80px">备注</th>
+          <th style="width:55px">图片</th>
+          <th style="width:50px">操作</th>
+        </tr></thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+    <div class="empty-state" id="emptyState" style="display:none"><div class="empty-icon">📭</div><p>没有匹配的记录</p></div>
+  </div>
+</main>
+
+<!-- 新增/编辑模态框 -->
+<div class="modal-overlay" id="modalOverlay" style="display:none" onclick="closeModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header"><h2 id="modalTitle">新增记录</h2><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="editId">
+      <div class="form-row">
+        <div class="form-group"><label>📅 入库日期 *</label><input type="date" id="inDate"></div>
+        <div class="form-group"><label>📅 出库日期</label><input type="date" id="outDate"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>👔 款式 *</label><input type="text" id="style" placeholder="如：DC1015" list="styleList"><datalist id="styleList"></datalist></div>
+        <div class="form-group"><label>📦 数量 *</label><input type="text" id="qty" placeholder="如：11（齐色）"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>🎨 是否齐色</label><select id="colorStatus"><option value="">--</option><option value="样衣">样衣</option><option value="齐色">齐色</option><option value="缺1">缺1</option><option value="缺2">缺2</option><option value="缺3">缺3</option><option value="缺4">缺4</option><option value="缺5">缺5</option></select></div>
+        <div class="form-group"><label>🙋 入库交付人 *</label><select id="inPerson"><option value="">--</option><option value="吴文校">吴文校</option><option value="张逸飞">张逸飞</option></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>📅 出库日期</label><input type="date" id="outDate"></div>
+        <div class="form-group"><label>🙋 出库交付人</label><select id="outPerson"><option value="">--</option><option value="孙岩">孙岩</option><option value="贫僧">贫僧</option></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>📍 目前位置</label><select id="location"><option value="">--</option><option value="影棚">影棚</option><option value="办公室">办公室</option><option value="仓库">仓库</option></select></div>
+        <div class="form-group"><label>📸 图片交付</label><select id="imgStatus"><option value="">--</option><option value="已交付">✅ 已交付</option><option value="未交付">⏳ 未交付</option></select></div>
+      </div>
+      <div class="form-group"><label>📷 拍摄类型</label><select id="shootType"><option value="">--</option><option value="定稿样拍摄">定稿样拍摄</option><option value="套图拍摄">套图拍摄</option></select></div>
+      <div class="form-row">
+        <div class="form-group"><label>📝 备注</label><textarea id="remark" placeholder="备注信息..."></textarea></div>
+        <div class="form-group"><label>🖼 图片位置</label><input type="text" id="imageUrl" placeholder="图片路径或链接"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveRecord()">💾 保存</button>
+    </div>
+  </div>
+</div>
+
+<div id="toastContainer"></div>
+
+<script>
+const API_BASE='',POLL_INTERVAL=2000,SHEET='main';
+let serverVersion=0,data={main:[],delivery:[]},currentShootType='',sortField='',sortDir='asc',pollTimer=null;
+
+// ══ API ══
+function setOnline(s){let d=document.querySelector('#onlineIndicator .dot'),t=document.getElementById('onlineText');if(s){d.className='dot on';t.textContent='已同步';document.getElementById('onlineIndicator').style.background='#ecfdf5'}else{d.className='dot off';t.textContent='离线';document.getElementById('onlineIndicator').style.background='#fef2f2'}}
+async function api(method,path,body){try{let opts={method,headers:{'Content-Type':'application/json'}};if(body)opts.body=JSON.stringify(body);let res=await fetch(API_BASE+path,opts);if(!res.ok)throw new Error('HTTP '+res.status);setOnline(true);return await res.json()}catch(e){setOnline(false);throw e}}
+
+async function loadFullData(){try{let r=await api('GET','/api/data');serverVersion=r.version;data.main=r.main||[];data.delivery=r.delivery||[];setOnline(true);renderAll()}catch(e){if(!data.main.length)showToast('⚠️ 无法连接服务器','error')}}
+async function checkVersion(){try{let r=await api('GET','/api/version');if(r.version>serverVersion){await loadFullData();showSyncToast('🔄 数据已同步')}setOnline(true)}catch(e){setOnline(false)}}
+function loadAll(){loadFullData().then(()=>showToast('已刷新','success'))}
+
+// ══ Online indicator ══
+(function(){document.getElementById('onlineText').textContent='连接中...';document.querySelector('#onlineIndicator .dot').className='dot off'})();
+
+// ══ Helpers ══
+function getCurrentData(){return data[SHEET]||[]}
+function formatDate(d){if(!d)return'';let p;if(d.includes('-'))p=d.split('-');else if(d.includes('.'))p=d.split('.');else return d;if(p.length===3){let y=p[0];if(y.length===2)y='20'+y;return y+'.'+p[1].padStart(2,'0')+'.'+p[2].padStart(2,'0')}return d}
+function getFilteredData(){
+  let rows=getCurrentData(),st=(document.getElementById('searchInput')?.value||'').toLowerCase().trim();
+  // shoot type filter
+    if(currentShootType)rows=rows.filter(r=>r.shootType===currentShootType);
+  // text search
+  if(st)rows=rows.filter(r=>Object.values(r).some(v=>(v||'').toLowerCase().includes(st)));
+  // sort
+  if(sortField){rows=[...rows].sort((a,b)=>{let va=a[sortField]||'',vb=b[sortField]||'';if(sortField==='date'||sortField==='outDate'){va=va.replace(/\./g,'-');vb=vb.replace(/\./g,'-')}let c=va.localeCompare(vb,'zh-CN');return sortDir==='asc'?c:-c})}
+  return rows;
+}
+
+// ══ Badge helpers ══
+function makeLocBadge(v){
+  if(!v)return'<span class="badge badge-none">--</span>';
+  if(v==='影棚')return'<span class="badge badge-studio">影棚</span>';
+  if(v==='办公室')return'<span class="badge badge-office">办公室</span>';
+  if(v==='仓库')return'<span class="badge badge-warehouse">仓库</span>';
+  return'<span class="badge badge-none">'+v+'</span>';
+}
+function makeImgBadge(v){
+  if(!v)return'<span class="badge badge-none">--</span>';
+  return'<span class="badge '+(v==='已交付'?'badge-yes':'badge-no')+'">'+(v==='已交付'?'✅ 已交付':'⏳ 未交付')+'</span>';
+}
+function makeTypeBadge(v){
+  if(!v)return'<span class="badge badge-none">--</span>';
+  return'<span class="badge '+(v==='定稿样拍摄'?'badge-draft':'badge-set')+'">'+v+'</span>';
+}
+function makeColorBadge(v){
+  if(!v)return'<span class="badge badge-none">--</span>';
+  if(v==='样衣')return'<span class="badge" style="background:#f0fdfa;color:#0d9488">样衣</span>';
+  if(v==='齐色')return'<span class="badge" style="background:#ecfdf5;color:#059669">齐色</span>';
+  if(v.startsWith('缺'))return'<span class="badge" style="background:#fef2f2;color:#dc2626">'+v+'</span>';
+  return'<span class="badge badge-none">'+v+'</span>';
+}
+
+// ══ Render ══
+function renderStats(){
+  let rows=getCurrentData(),total=rows.length;
+  let inc=rows.filter(r=>r.date).length,outc=rows.filter(r=>r.outDate).length;
+  document.getElementById('statsRow').innerHTML=
+    '<div class="stat-card"><div class="stat-icon blue">📋</div><div class="stat-info"><div class="stat-num">'+total+'</div><div class="stat-label">总记录数</div></div></div>'+
+    '<div class="stat-card"><div class="stat-icon green">📥</div><div class="stat-info"><div class="stat-num">'+inc+'</div><div class="stat-label">已入库</div></div></div>'+
+    '<div class="stat-card"><div class="stat-icon orange">📤</div><div class="stat-info"><div class="stat-num">'+outc+'</div><div class="stat-label">已出库</div></div></div>';
+}
+
+function renderTable(){ doSearch(); }
+
+function renderAll(){
+  renderStats();
+  // Populate datalists for modal
+  let styles=new Set();
+  getCurrentData().forEach(r=>{if(r.style)r.style.split(',').forEach(x=>{let t=x.trim();if(t)styles.add(t)})});
+  let sl=document.getElementById('styleList');if(sl)sl.innerHTML=[...styles].map(s=>'<option value="'+s+'">').join('');
+  renderTable();
+}
+
+// ══ Cell update (no re-render) ══
+function updateCell(td,field,value){
+  let id=parseInt(td.dataset.id),record=getCurrentData().find(r=>r.id===id);
+  if(!record)return;
+  if(field==='location')td.innerHTML=makeLocBadge(value);
+  else if(field==='imgStatus')td.innerHTML=makeImgBadge(value);
+  else if(field==='shootType')td.innerHTML=makeTypeBadge(value);
+  else if(field==='colorStatus')td.innerHTML=makeColorBadge(value);
+  else if(field==='inPerson'||field==='outPerson')td.textContent=value||'--';
+  else if(field==='date'||field==='outDate')td.textContent=formatDate(value)||'点击编辑';
+  else td.textContent=value||'点击编辑';
+}
+
+// ══ Custom dropdown ══
+const locOptions=[
+  {value:'',label:'--',icon:''},
+  {value:'影棚',label:'影棚',icon:''},
+  {value:'办公室',label:'办公室',icon:''},
+  {value:'仓库',label:'仓库',icon:''}
+];
+const imgOptions=[
+  {value:'',label:'--',icon:''},
+  {value:'已交付',label:'已交付',icon:'✅'},
+  {value:'未交付',label:'未交付',icon:'⏳'}
+];
+const typeOptions=[
+  {value:'',label:'--',icon:''},
+  {value:'定稿样拍摄',label:'定稿样拍摄',icon:''},
+  {value:'套图拍摄',label:'套图拍摄',icon:''}
+];
+const inPersonOptions=[
+  {value:'',label:'--',icon:''},
+  {value:'吴文校',label:'吴文校',icon:''},
+  {value:'张逸飞',label:'张逸飞',icon:''}
+];
+const outPersonOptions=[
+  {value:'',label:'--',icon:''},
+  {value:'孙岩',label:'孙岩',icon:''},
+  {value:'贫僧',label:'贫僧',icon:''}
+];
+const colorOptions=[
+  {value:'',label:'--',icon:''},
+  {value:'样衣',label:'样衣',icon:''},
+  {value:'齐色',label:'齐色',icon:''},
+  {value:'缺1',label:'缺1',icon:''},
+  {value:'缺2',label:'缺2',icon:''},
+  {value:'缺3',label:'缺3',icon:''},
+  {value:'缺4',label:'缺4',icon:''},
+  {value:'缺5',label:'缺5',icon:''}
+];
+
+function closeAllDropdowns(){
+  document.querySelectorAll('.dropdown-menu.show').forEach(m=>m.classList.remove('show'));
+  document.querySelectorAll('.dropdown-backdrop').forEach(b=>b.remove());
+}
+
+function openDropdown(td,field,id,currentValue){
+  closeAllDropdowns();
+  let options=field==='location'?locOptions:field==='imgStatus'?imgOptions:field==='shootType'?typeOptions:field==='inPerson'?inPersonOptions:field==='outPerson'?outPersonOptions:colorOptions;
+
+  let backdrop=document.createElement('div');
+  backdrop.className='dropdown-backdrop';
+  backdrop.onclick=()=>{
+    closeAllDropdowns();
+    td.classList.remove('editing');
+    updateCell(td,field,currentValue);
+  };
+
+  let menu=document.createElement('div');
+  menu.className='dropdown-menu show';
+  menu.style.minWidth='150px';
+
+  options.forEach(opt=>{
+    let item=document.createElement('div');
+    item.className='dropdown-item'+(opt.value===currentValue?' active':'');
+    item.innerHTML=(opt.icon?'<span style="font-size:15px">'+opt.icon+'</span> ':'')+opt.label;
+    item.onclick=async(e)=>{
+      e.stopPropagation();
+      closeAllDropdowns();
+      td.classList.remove('editing');
+      try{
+        await api('PUT','/api/records/'+SHEET+'/'+id+'/field',{field,value:opt.value});
+        let rec=getCurrentData().find(r=>r.id===id);
+        if(rec)rec[field]=opt.value;
+        updateCell(td,field,opt.value);
+        renderStats();
+      }catch(e){showToast('保存失败','error')}
+    };
+    menu.appendChild(item);
+  });
+
+  document.body.appendChild(backdrop);
+  document.body.appendChild(menu);
+  let rect=td.getBoundingClientRect();
+  menu.style.left=rect.left+'px';
+  menu.style.top=(rect.bottom+4)+'px';
+  if(rect.left+180>window.innerWidth)menu.style.left=(window.innerWidth-190)+'px';
+  if(rect.bottom+180>window.innerHeight)menu.style.top=(rect.top-190)+'px';
+}
+
+// ══ Inline edit ══
+document.addEventListener('click',function(e){
+  let td=e.target.closest('td.editable');
+  if(!td||td.classList.contains('editing'))return;
+  closeAllDropdowns();
+
+  let field=td.dataset.field,id=parseInt(td.dataset.id);
+  if(!id)return; // Skip add-row area
+
+  // Custom dropdown cells
+  if(td.classList.contains('dropdown-cell')){
+    td.classList.add('editing');
+    let rec=getCurrentData().find(r=>r.id===id);
+    let cv=rec?rec[field]||'':'';
+    openDropdown(td,field,id,cv);
+    return;
+  }
+
+  // Regular cell
+  let rec=getCurrentData().find(r=>r.id===id);
+  if(!rec)return;
+  // Only finish OTHER editing cells, not this one
+  document.querySelectorAll('td.editing:not(.dropdown-cell)').forEach(el=>{
+    if(el!==td) finishEdit(el);
+  });
+  td.classList.add('editing');
+  let isDate=field==='date'||field==='outDate';
+  let input=document.createElement('input');
+  input.type=isDate?'date':'text';
+  if(isDate)input.value=(rec[field]||'').replace(/\./g,'-');
+  else input.value=rec[field]||'';
+  if(isDate){
+    input.addEventListener('change',()=>commitEdit(td,field,id,input.value));
+    input.addEventListener('keydown',ev=>{
+      if(ev.key==='Enter'){ev.preventDefault();commitEdit(td,field,id,input.value)}
+      if(ev.key==='Escape'){ev.preventDefault();cancelEdit(td,id,field)}
+    });
+  }else{
+    input.addEventListener('blur',()=>commitEdit(td,field,id,input.value));
+    input.addEventListener('keydown',ev=>{
+      if(ev.key==='Enter'){ev.preventDefault();commitEdit(td,field,id,input.value)}
+      if(ev.key==='Escape'){ev.preventDefault();cancelEdit(td,id,field)}
+    });
+  }
+  td.textContent='';td.appendChild(input);input.focus();input.select();
+});
+
+// Click outside date cells to cancel
+document.addEventListener('mousedown',function(e){
+  let editingDate=document.querySelector('td.editing input[type="date"]');
+  if(!editingDate)return;
+  let td=editingDate.closest('td.editable');
+  if(!td)return;
+  // If click is outside the editing td, cancel
+  if(!td.contains(e.target)){
+    let field=td.dataset.field,id=parseInt(td.dataset.id);
+    cancelEdit(td,id,field);
+  }
+});
+
+// ══ Add blank row ══
+async function addBlankRow(){
+  let record={date:new Date().toISOString().split('T')[0].replace(/-/g,'.'),style:'',qty:'',colorStatus:'',inPerson:'',outDate:'',outPerson:'',location:'',imgStatus:'',shootType:'',remark:'',imageUrl:'',extra:''};
+  try{
+    await api('POST','/api/records',{sheet:SHEET,record});
+    await loadFullData();
+    showToast('空白行已添加 ✅','success');
+  }catch(e){showToast('添加失败','error')}
+}
+
+function finishEdit(el){
+  el.classList.remove('editing');
+  let f=el.dataset.field,id=parseInt(el.dataset.id);
+  let rec=getCurrentData().find(r=>r.id===id);
+  if(rec)updateCell(el,f,rec[f]);
+}
+function cancelEdit(td,id,field){
+  td.classList.remove('editing');
+  let rec=getCurrentData().find(r=>r.id===id);
+  if(rec)updateCell(td,field,rec[field]);
+}
+async function commitEdit(td,field,id,value){
+  td.classList.remove('editing');
+  if(field==='date'||field==='outDate')value=value.replace(/-/g,'.');
+  await api('PUT','/api/records/'+SHEET+'/'+id+'/field',{field,value});
+  let rec=getCurrentData().find(r=>r.id===id);
+  if(rec)rec[field]=value;
+  updateCell(td,field,value);
+  if(field==='date'||field==='outDate'||field==='shootType')renderStats();
+}
+
+// ══ Actions ══
+function setShootType(type){currentShootType=type;document.querySelectorAll('.type-tab').forEach(t=>t.classList.toggle('active',t.dataset.type===type));renderAll()}
+function sortTable(field){sortField=sortField===field?(sortDir==='asc'?'desc':'asc'):field;sortDir=sortField===field?sortDir:'asc';renderTable()}
+
+// ══ Search ══
+function doSearch(){
+  try{
+    let val=document.getElementById('searchInput').value.toLowerCase().trim();
+    let rows=getCurrentData();
+    // shoot type
+    if(currentShootType)rows=rows.filter(r=>r.shootType===currentShootType);
+    // text filter
+    if(val)rows=rows.filter(r=>Object.values(r).some(v=>String(v||'').toLowerCase().includes(val)));
+    // sort
+    if(sortField){rows=[...rows].sort((a,b)=>{let va=a[sortField]||'',vb=b[sortField]||'';if(sortField==='date'||sortField==='outDate'){va=va.replace(/\./g,'-');vb=vb.replace(/\./g,'-')}return(va.localeCompare(vb,'zh-CN'))*(sortDir==='asc'?1:-1)})}
+    // render directly
+    renderFilteredTable(rows);
+    document.getElementById('searchClear').classList.toggle('visible',!!val);
+  }catch(e){showToast('搜索出错: '+e.message,'error')}
+}
+function clearSearch(){
+  document.getElementById('searchInput').value='';
+  doSearch();
+  document.getElementById('searchInput').focus();
+}
+
+// Direct table render with given rows (avoids re-reading DOM)
+function renderFilteredTable(rows){
+  let tbody=document.getElementById('tableBody'),es=document.getElementById('emptyState');
+  document.getElementById('recordCount').textContent='共 '+rows.length+' 条';
+  let ttl='📊 记录列表';
+  if(currentShootType)ttl='📊 '+currentShootType;
+  document.getElementById('tableTitle').innerHTML=ttl;
+  if(!rows.length){tbody.innerHTML='';es.style.display='block';return}
+  es.style.display='none';closeAllDropdowns();
+  tbody.innerHTML=rows.map((r,i)=>{
+    let dd=formatDate(r.date),od=formatDate(r.outDate);
+    return'<tr data-id="'+r.id+'">'+
+      '<td style="color:#9ca3af;font-size:11px">'+(i+1)+'</td>'+
+      '<td class="date-cell editable" data-field="date" data-id="'+r.id+'">'+(dd||'点击编辑')+'</td>'+
+      '<td class="style-cell editable" data-field="style" data-id="'+r.id+'">'+(r.style||'点击编辑')+'</td>'+
+      '<td class="qty-cell editable" data-field="qty" data-id="'+r.id+'">'+(r.qty||'点击编辑')+'</td>'+
+      '<td class="editable dropdown-cell" data-field="colorStatus" data-id="'+r.id+'">'+makeColorBadge(r.colorStatus)+'</td>'+
+      '<td class="editable dropdown-cell" data-field="inPerson" data-id="'+r.id+'">'+(r.inPerson||'<span class="badge badge-none">--</span>')+'</td>'+
+      '<td class="date-cell editable" data-field="outDate" data-id="'+r.id+'">'+(od||'点击编辑')+'</td>'+
+      '<td class="editable dropdown-cell" data-field="outPerson" data-id="'+r.id+'">'+(r.outPerson||'<span class="badge badge-none">--</span>')+'</td>'+
+      '<td class="editable dropdown-cell" data-field="location" data-id="'+r.id+'">'+makeLocBadge(r.location)+'</td>'+
+      '<td class="editable dropdown-cell" data-field="imgStatus" data-id="'+r.id+'">'+makeImgBadge(r.imgStatus)+'</td>'+
+      '<td class="editable dropdown-cell" data-field="shootType" data-id="'+r.id+'">'+makeTypeBadge(r.shootType)+'</td>'+
+      '<td class="editable" data-field="remark" data-id="'+r.id+'" style="max-width:140px;overflow:hidden;text-overflow:ellipsis" title="'+(r.remark||'')+'">'+(r.remark||'点击编辑')+'</td>'+
+      '<td class="img-upload-cell" data-field="imageUrl" data-id="'+r.id+'" onclick="uploadImage(event,'+r.id+')">'+(r.imageUrl?'<img src="'+r.imageUrl+'" style="width:42px;height:42px;object-fit:cover;border-radius:4px;cursor:pointer" title="点击更换图片">':'<span style="color:#9ca3af;cursor:pointer;font-size:12px;white-space:nowrap">＋ 添加图片</span>')+'</td>'+
+      '<td><button class="btn btn-danger btn-xs" onclick="deleteById('+r.id+')">🗑</button></td></tr>';
+  }).join('')+
+  '<tr class="add-row" id="addRow"><td style="text-align:center;padding:5px"><button onclick="addBlankRow()" style="width:18px;height:18px;border-radius:50%;border:1px solid #d1d5db;background:#fff;color:#9ca3af;cursor:pointer;font-size:12px;line-height:1;padding:0;transition:all .15s" onmouseover="this.style.background=\'#f3f4f6\';this.style.color=\'#666\'" onmouseout="this.style.background=\'#fff\';this.style.color=\'#9ca3af\'" title="添加新行">＋</button></td><td colspan="13" style="color:#d1d5db;font-size:11px">添加新行</td></tr>';
+}
+
+// ══ Modal ══
+function openAddModal(){
+  document.getElementById('editId').value='';document.getElementById('modalTitle').textContent='➕ 新增记录';
+  document.getElementById('inDate').value=new Date().toISOString().split('T')[0];document.getElementById('outDate').value='';
+  document.getElementById('style').value='';document.getElementById('qty').value='';document.getElementById('colorStatus').value='';document.getElementById('inPerson').value='';
+  document.getElementById('outPerson').value='';document.getElementById('location').value='';document.getElementById('imgStatus').value='';
+  document.getElementById('shootType').value='';document.getElementById('remark').value='';document.getElementById('imageUrl').value='';
+  document.getElementById('modalOverlay').style.display='flex';
+}
+async function saveRecord(){
+  let rec={date:document.getElementById('inDate').value,style:document.getElementById('style').value.trim(),qty:document.getElementById('qty').value.trim(),colorStatus:document.getElementById('colorStatus').value,inPerson:document.getElementById('inPerson').value,outDate:document.getElementById('outDate').value,outPerson:document.getElementById('outPerson').value,location:document.getElementById('location').value,imgStatus:document.getElementById('imgStatus').value,shootType:document.getElementById('shootType').value,remark:document.getElementById('remark').value.trim(),imageUrl:document.getElementById('imageUrl').value.trim(),extra:''};
+  if(!rec.date||!rec.style||!rec.qty||!rec.inPerson){showToast('请填写必填项','error');return}
+  try{await api('POST','/api/records',{sheet:SHEET,record:rec});closeModal();await loadFullData();showToast('新增成功 ✅','success')}catch(e){showToast('保存失败','error')}
+}
+async function deleteById(id){
+  let rec=getCurrentData().find(r=>r.id===id);if(!rec)return;
+  if(!confirm('确定删除？\n款式: '+rec.style+'\n日期: '+formatDate(rec.date)))return;
+  try{await api('DELETE','/api/records/'+SHEET+'/'+id);await loadFullData();showToast('已删除 🗑','success')}catch(e){showToast('删除失败','error')}
+}
+function closeModal(e){if(e&&e.target!==document.getElementById('modalOverlay'))return;document.getElementById('modalOverlay').style.display='none'}
+
+// ══ Image upload with auto-compression ══
+function uploadImage(e,id){
+  e.stopPropagation();e.preventDefault();
+  let input=document.createElement('input');
+  input.type='file';input.accept='image/*';input.style.display='none';
+  document.body.appendChild(input);
+  input.onchange=function(){
+    let file=input.files[0];if(!file){input.remove();return}
+    showToast('压缩上传中...','success');
+    let reader=new FileReader();
+    reader.onload=function(ev){
+      let img=new Image();
+      img.onload=function(){
+        let c=document.createElement('canvas');
+        let maxW=600,scale=Math.min(1,maxW/img.width);
+        c.width=img.width*scale;c.height=img.height*scale;
+        let ctx=c.getContext('2d');ctx.drawImage(img,0,0,c.width,c.height);
+        let compressed=c.toDataURL('image/jpeg',0.7);
+        try{
+          let rec=getCurrentData().find(r=>r.id===id);
+          if(rec){rec.imageUrl=compressed;
+            try{await api('PUT','/api/records/'+SHEET+'/'+id+'/field',{field:'imageUrl',value:compressed})}catch(e){}
+            renderAll();showToast('图片已保存 ✅','success')}
+        }catch(err){
+          showToast('存储不足，请清理旧图片','error');
+        }
+        input.remove();
+      };
+      img.onerror=function(){showToast('图片加载失败','error');input.remove()};
+      img.src=ev.target.result;
+    };
+    reader.onerror=function(){showToast('图片读取失败','error');input.remove()};
+    reader.readAsDataURL(file);
+  };
+  input.click();
+}
+function exportData(){
+  let rows=getCurrentData(),csv='\uFEFF入库日期,款式,数量,是否齐色,入库交付人,出库日期,出库交付人,目前位置,图片交付,拍摄类型,备注,图片位置\n';
+  rows.forEach(r=>{csv+=r.date+','+r.style+','+r.qty+','+(r.colorStatus||'')+','+r.inPerson+','+(r.outDate||'')+','+(r.outPerson||'')+','+(r.location||'')+','+(r.imgStatus||'')+','+(r.shootType||'')+','+(r.remark||'')+','+(r.imageUrl||'')+'\n'});
+  let b=new Blob([csv],{type:'text/csv;charset=utf-8;'}),url=URL.createObjectURL(b),a=document.createElement('a');
+  a.href=url;a.download='样衣出入库_'+SHEET+'_'+new Date().toISOString().split('T')[0]+'.csv';a.click();URL.revokeObjectURL(url);
+  showToast('导出成功 📥','success');
+}
+
+function showToast(msg,type){let c=document.getElementById('toastContainer'),t=document.createElement('div');t.className='toast toast-'+type;t.textContent=msg;c.appendChild(t);setTimeout(()=>t.remove(),2500)}
+function showSyncToast(msg){let e=document.querySelector('.sync-toast');if(e)e.remove();let t=document.createElement('div');t.className='sync-toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2500)}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeAllDropdowns()}if(e.ctrlKey&&e.key==='n'){e.preventDefault();openAddModal()}});
+
+async function init(){
+  await loadFullData();
+  pollTimer=setInterval(checkVersion,POLL_INTERVAL);
+}
+init();
+</script>
+</body>
+</html>
