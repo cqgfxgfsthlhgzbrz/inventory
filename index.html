@@ -623,7 +623,7 @@ function uploadImage(e,id){
     let reader=new FileReader();
     reader.onload=function(ev){
       let img=new Image();
-      img.onload=function(){
+      img.onload=async function(){
         let c=document.createElement('canvas');
         let maxW=600,scale=Math.min(1,maxW/img.width);
         c.width=img.width*scale;c.height=img.height*scale;
