@@ -127,6 +127,17 @@ tr.add-row:hover td{background:#fafbff}
 
 .img-upload-cell{cursor:pointer;text-align:center;vertical-align:middle;transition:background .1s;min-width:52px}
 .img-upload-cell:hover{background:#f5f6f8}
+.img-thumb{position:relative;display:inline-block;cursor:default}
+.img-thumb img{width:42px;height:42px;object-fit:cover;border-radius:4px;cursor:zoom-in;transition:transform .15s}
+.img-thumb img:hover{transform:scale(1.05)}
+.img-thumb .img-replace{position:absolute;top:-6px;right:-6px;width:18px;height:18px;background:#4f6ef7;color:#fff;border-radius:50%;font-size:10px;line-height:18px;text-align:center;cursor:pointer;opacity:0;transition:opacity .15s;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.img-thumb:hover .img-replace{opacity:1}
+.img-thumb .img-replace:hover{background:#3b5de7}
+/* Image viewer overlay */
+.img-viewer{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:300;display:flex;align-items:center;justify-content:center;cursor:zoom-out;animation:fadeIn .15s}
+.img-viewer img{max-width:90vw;max-height:90vh;object-fit:contain;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,.5)}
+.img-viewer .img-close{position:absolute;top:20px;right:20px;width:40px;height:40px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:50%;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s}
+.img-viewer .img-close:hover{background:rgba(255,255,255,.3)}
 
 .empty-state{text-align:center;padding:60px 20px;color:var(--text-secondary)}
 .empty-state .empty-icon{font-size:48px;margin-bottom:12px}
@@ -584,7 +595,7 @@ function renderFilteredTable(rows){
       '<td class="editable dropdown-cell" data-field="imgStatus" data-id="'+r.id+'">'+makeImgBadge(r.imgStatus)+'</td>'+
       '<td class="editable dropdown-cell" data-field="shootType" data-id="'+r.id+'">'+makeTypeBadge(r.shootType)+'</td>'+
       '<td class="editable" data-field="remark" data-id="'+r.id+'" style="max-width:140px;overflow:hidden;text-overflow:ellipsis" title="'+(r.remark||'')+'">'+(r.remark||'点击编辑')+'</td>'+
-      '<td class="img-upload-cell" data-field="imageUrl" data-id="'+r.id+'" onclick="uploadImage(event,'+r.id+')">'+(r.imageUrl?'<img src="'+r.imageUrl+'" style="width:42px;height:42px;object-fit:cover;border-radius:4px;cursor:pointer" title="点击更换图片">':'<span style="color:#9ca3af;cursor:pointer;font-size:12px;white-space:nowrap">＋ 添加图片</span>')+'</td>'+
+      '<td class="img-upload-cell" data-field="imageUrl" data-id="'+r.id+'">'+(r.imageUrl?'<div class="img-thumb"><img src="'+r.imageUrl+'" onclick="viewImage(event,\''+r.imageUrl+'\')" title="点击放大查看"><span class="img-replace" onclick="uploadImage(event,'+r.id+')" title="更换图片">＋</span></div>':'<span style="color:#9ca3af;cursor:pointer;font-size:12px;white-space:nowrap" onclick="uploadImage(event,'+r.id+')">＋ 添加图片</span>')+'</td>'+
       '<td><button class="btn btn-danger btn-xs" onclick="deleteById('+r.id+')">🗑</button></td></tr>';
   }).join('')+
   '<tr class="add-row" id="addRow"><td style="text-align:center;padding:5px"><button onclick="addBlankRow()" style="width:18px;height:18px;border-radius:50%;border:1px solid #d1d5db;background:#fff;color:#9ca3af;cursor:pointer;font-size:12px;line-height:1;padding:0;transition:all .15s" onmouseover="this.style.background=\'#f3f4f6\';this.style.color=\'#666\'" onmouseout="this.style.background=\'#fff\';this.style.color=\'#9ca3af\'" title="添加新行">＋</button></td><td colspan="13" style="color:#d1d5db;font-size:11px">添加新行</td></tr>';
@@ -647,6 +658,17 @@ function uploadImage(e,id){
   };
   input.click();
 }
+
+// ══ Image viewer - click to enlarge ══
+function viewImage(e,url){
+  e.stopPropagation();e.preventDefault();
+  let ov=document.createElement('div');ov.className='img-viewer';
+  ov.innerHTML='<img src="'+url+'"><button class="img-close">✕</button>';
+  ov.onclick=function(){ov.remove()};
+  ov.querySelector('.img-close').onclick=function(ev){ev.stopPropagation();ov.remove()};
+  document.body.appendChild(ov);
+}
+
 function exportData(){
   let rows=getCurrentData(),csv='\uFEFF入库日期,款式,数量,是否齐色,入库交付人,出库日期,出库交付人,目前位置,图片交付,拍摄类型,备注,图片位置\n';
   rows.forEach(r=>{csv+=r.date+','+r.style+','+r.qty+','+(r.colorStatus||'')+','+r.inPerson+','+(r.outDate||'')+','+(r.outPerson||'')+','+(r.location||'')+','+(r.imgStatus||'')+','+(r.shootType||'')+','+(r.remark||'')+','+(r.imageUrl||'')+'\n'});
