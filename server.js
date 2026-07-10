@@ -120,4 +120,12 @@ const server = http.createServer(async (req, res) => {
   serveStatic(req, res);
 });
 
-server.listen(PORT, () => console.log('Server running on port ' + PORT));
+// Vercel serverless support
+if (process.env.VERCEL) {
+  module.exports = async (req, res) => {
+    await new Promise((resolve) => server.emit('request', req, res));
+    return new Promise((resolve) => res.on('finish', resolve));
+  };
+} else {
+  server.listen(PORT, () => console.log('Server running on port ' + PORT));
+}
