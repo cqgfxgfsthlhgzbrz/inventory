@@ -3,8 +3,10 @@ const fs = require('fs');
 const path = require('path');
 
 const PORT = process.env.PORT || 3000;
-const DATA_FILE = path.join(__dirname, 'data.json');
+const BLOB_ID = process.env.BLOB_ID || '019f4c85-55fd-77f7-939b-15b52add4bce';
+const BLOB_URL = `https://jsonblob.com/api/jsonBlob/${BLOB_ID}`;
 
+// Default data as fallback
 const defaultData = {
   version: 1,
   main: [
@@ -25,19 +27,56 @@ const defaultData = {
   delivery: []
 };
 
-function load() {
-  if (fs.existsSync(DATA_FILE)) {
-    try { return JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8')); } catch(e) {}
+// In-memory cache to reduce API calls
+let cache = null;
+let cacheVersion = -1;
+
+async function loadFromBlob() {
+  try {
+    const res = await fetch(BLOB_URL, {
+      headers: { 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(10000)
+    });
+    if (!res.ok) throw new Error('Blob read failed: ' + res.status);
+    const data = await res.json();
+    cache = data;
+    cacheVersion = data.version || 0;
+    return data;
+  } catch(e) {
+    console.error('Load error:', e.message);
+    // Return cache if available, otherwise default
+    if (cache) return JSON.parse(JSON.stringify(cache));
+    return JSON.parse(JSON.stringify(defaultData));
   }
-  save(defaultData);
-  return JSON.parse(JSON.stringify(defaultData));
 }
 
-function save(d) {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(d, null, 2), 'utf-8');
+async function saveToBlob(data) {
+  try {
+    const res = await fetch(BLOB_URL, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      body: JSON.stringify(data),
+      signal: AbortSignal.timeout(10000)
+    });
+    if (!res.ok) throw new Error('Blob write failed: ' + res.status);
+    cache = data;
+    cacheVersion = data.version;
+    return true;
+  } catch(e) {
+    console.error('Save error:', e.message);
+    return false;
+  }
 }
 
-const MIME = { '.html': 'text/html;charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml' };
+const MIME = {
+  '.html': 'text/html;charset=utf-8',
+  '.js': 'text/javascript',
+  '.css': 'text/css',
+  '.json': 'application/json',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.svg': 'image/svg+xml'
+};
 
 function serveStatic(req, res) {
   let filePath = path.join(__dirname, req.url === '/' ? 'index.html' : decodeURIComponent(req.url.split('?')[0]));
@@ -51,8 +90,11 @@ function serveStatic(req, res) {
   }
 }
 
-function json(res, data) {
-  res.writeHead(200, { 'Content-Type': 'application/json;charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+function json(res, data, code) {
+  res.writeHead(code || 200, {
+    'Content-Type': 'application/json;charset=utf-8',
+    'Access-Control-Allow-Origin': '*'
+  });
   res.end(JSON.stringify(data));
 }
 
@@ -60,7 +102,9 @@ function readBody(req) {
   return new Promise(resolve => {
     let body = '';
     req.on('data', c => body += c);
-    req.on('end', () => { try { resolve(JSON.parse(body)); } catch(e) { resolve({}); } });
+    req.on('end', () => {
+      try { resolve(JSON.parse(body)); } catch(e) { resolve({}); }
+    });
   });
 }
 
@@ -75,47 +119,65 @@ const server = http.createServer(async (req, res) => {
 
   // API: GET /api/version
   if (req.method === 'GET' && url === '/api/version') {
-    return json(res, { version: load().version });
+    try {
+      let d = await loadFromBlob();
+      return json(res, { version: d.version });
+    } catch(e) {
+      return json(res, { version: 1 }, 500);
+    }
   }
+
   // API: GET /api/data
   if (req.method === 'GET' && url === '/api/data') {
-    return json(res, load());
+    try {
+      let d = await loadFromBlob();
+      return json(res, d);
+    } catch(e) {
+      return json(res, { error: 'Failed to load data' }, 500);
+    }
   }
+
   // API: POST /api/records
   if (req.method === 'POST' && url === '/api/records') {
     let b = await readBody(req);
-    let d = load();
+    let d = await loadFromBlob();
     let rec = b.record || {};
     rec.id = Date.now();
     d[b.sheet || 'main'] = d[b.sheet || 'main'] || [];
     d[b.sheet || 'main'].push(rec);
     d.version = (d.version || 0) + 1;
-    save(d);
+    let ok = await saveToBlob(d);
+    if (!ok) return json(res, { error: 'Save failed' }, 500);
     return json(res, { success: true, record: rec, version: d.version });
   }
+
   // API: PUT /api/records/:sheet/:id/field
   if (req.method === 'PUT' && parts.length >= 5 && parts[0] === 'api' && parts[1] === 'records' && parts[4] === 'field') {
-    let d = load();
-    let sheet = parts[2], rid = parseInt(parts[3]);
     let b = await readBody(req);
+    let d = await loadFromBlob();
+    let sheet = parts[2], rid = parseInt(parts[3]);
     let rec = (d[sheet] || []).find(r => r.id === rid);
     if (rec) {
       rec[b.field] = b.value;
       d.version = (d.version || 0) + 1;
-      save(d);
+      let ok = await saveToBlob(d);
+      if (!ok) return json(res, { error: 'Save failed' }, 500);
       return json(res, { success: true, record: rec, version: d.version });
     }
     res.writeHead(404); res.end('not found'); return;
   }
+
   // API: DELETE /api/records/:sheet/:id
   if (req.method === 'DELETE' && parts.length === 4 && parts[0] === 'api' && parts[1] === 'records') {
-    let d = load();
+    let d = await loadFromBlob();
     let sheet = parts[2], rid = parseInt(parts[3]);
     d[sheet] = (d[sheet] || []).filter(r => r.id !== rid);
     d.version = (d.version || 0) + 1;
-    save(d);
+    let ok = await saveToBlob(d);
+    if (!ok) return json(res, { error: 'Save failed' }, 500);
     return json(res, { success: true, version: d.version });
   }
+
   // Static files
   serveStatic(req, res);
 });
