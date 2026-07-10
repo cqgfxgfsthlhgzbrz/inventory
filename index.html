@@ -274,22 +274,17 @@ tr.add-row:hover td{background:#fafbff}
 </div>
 
 <div id="toastContainer"></div>
-<div id="debugConsole" style="position:fixed;bottom:0;left:0;right:0;background:#1a1a2e;color:#0f0;font-family:monospace;font-size:11px;max-height:120px;overflow-y:auto;padding:8px;z-index:9999;display:none"></div>
 
 <script>
-// Debug helper
-function dbg(msg){let d=document.getElementById('debugConsole');d.style.display='block';let t=new Date().toLocaleTimeString();d.innerHTML+='['+t+'] '+msg.replace(/</g,'&lt;')+'<br>';d.scrollTop=d.scrollHeight;console.log(msg)}
-dbg('JS loaded, starting init...');
-
 const API_BASE='',POLL_INTERVAL=5000,SHEET='main';
 let serverVersion=0,data={main:[],delivery:[]},currentShootType='',sortField='',sortDir='asc',pollTimer=null;
 
 // ══ API ══
 function setOnline(s){let d=document.querySelector('#onlineIndicator .dot'),t=document.getElementById('onlineText');if(s){d.className='dot on';t.textContent='已同步';document.getElementById('onlineIndicator').style.background='#ecfdf5'}else{d.className='dot off';t.textContent='离线';document.getElementById('onlineIndicator').style.background='#fef2f2'}}
-async function api(method,path,body){try{let opts={method,headers:{'Content-Type':'application/json'}};if(body)opts.body=JSON.stringify(body);dbg('API '+method+' '+path);let res=await fetch(API_BASE+path,opts);dbg('API response: '+res.status);if(!res.ok)throw new Error('HTTP '+res.status);setOnline(true);return await res.json()}catch(e){dbg('API ERROR: '+e.message);setOnline(false);throw e}}
+async function api(method,path,body){try{let opts={method,headers:{'Content-Type':'application/json'}};if(body)opts.body=JSON.stringify(body);let res=await fetch(API_BASE+path,opts);if(!res.ok)throw new Error('HTTP '+res.status);setOnline(true);return await res.json()}catch(e){setOnline(false);throw e}}
 
-async function loadFullData(){try{dbg('Loading full data...');let r=await api('GET','/api/data');dbg('Got data: '+r.main.length+' records, version='+r.version);serverVersion=r.version;data.main=r.main||[];data.delivery=r.delivery||[];setOnline(true);renderAll();dbg('Render complete')}catch(e){dbg('LoadFullData FAILED: '+e.message);if(!data.main.length)showToast('⚠️ 无法连接服务器: '+e.message,'error')}}
-async function checkVersion(){try{dbg('Checking version...');let r=await api('GET','/api/version');if(r.version>serverVersion){await loadFullData();showSyncToast('🔄 数据已同步')}setOnline(true)}catch(e){dbg('CheckVersion fail: '+e.message);setOnline(false)}}
+async function loadFullData(){try{let r=await api('GET','/api/data');serverVersion=r.version;data.main=r.main||[];data.delivery=r.delivery||[];setOnline(true);renderAll()}catch(e){if(!data.main.length)showToast('⚠️ 无法连接服务器: '+e.message,'error')}}
+async function checkVersion(){try{let r=await api('GET','/api/version');if(r.version>serverVersion){await loadFullData();showSyncToast('🔄 数据已同步')}setOnline(true)}catch(e){setOnline(false)}}
 function loadAll(){loadFullData().then(()=>showToast('已刷新','success'))}
 
 // ══ Online indicator ══
@@ -687,12 +682,10 @@ function showSyncToast(msg){let e=document.querySelector('.sync-toast');if(e)e.r
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeAllDropdowns()}if(e.ctrlKey&&e.key==='n'){e.preventDefault();openAddModal()}});
 
 async function init(){
-  dbg('init() started');
   await loadFullData();
-  dbg('Starting poll timer...');
   pollTimer=setInterval(checkVersion,POLL_INTERVAL);
 }
-init().catch(e=>dbg('INIT CRASH: '+e.stack));
+init().catch(e=>console.error('INIT ERROR:',e));
 
 </script>
 </body>
