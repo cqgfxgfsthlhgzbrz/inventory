@@ -281,7 +281,7 @@ tr.add-row:hover td{background:#fafbff}
 function dbg(msg){let d=document.getElementById('debugConsole');d.style.display='block';let t=new Date().toLocaleTimeString();d.innerHTML+='['+t+'] '+msg.replace(/</g,'&lt;')+'<br>';d.scrollTop=d.scrollHeight;console.log(msg)}
 dbg('JS loaded, starting init...');
 
-const API_BASE='',POLL_INTERVAL=2000,SHEET='main';
+const API_BASE='',POLL_INTERVAL=5000,SHEET='main';
 let serverVersion=0,data={main:[],delivery:[]},currentShootType='',sortField='',sortDir='asc',pollTimer=null;
 
 // ══ API ══
@@ -571,8 +571,13 @@ function clearSearch(){
   document.getElementById('searchInput').focus();
 }
 
-// Direct table render with given rows (avoids re-reading DOM)
+// Direct table render with given rows (uses rAF to debounce rapid calls)
+let _renderRaf=null;
 function renderFilteredTable(rows){
+  if(_renderRaf)cancelAnimationFrame(_renderRaf);
+  _renderRaf=requestAnimationFrame(()=>{_renderRaf=null;_renderFilteredTable(rows)});
+}
+function _renderFilteredTable(rows){
   let tbody=document.getElementById('tableBody'),es=document.getElementById('emptyState');
   document.getElementById('recordCount').textContent='共 '+rows.length+' 条';
   let ttl='📊 记录列表';
@@ -613,12 +618,12 @@ function openAddModal(){
 async function saveRecord(){
   let rec={date:document.getElementById('inDate').value,style:document.getElementById('style').value.trim(),qty:document.getElementById('qty').value.trim(),colorStatus:document.getElementById('colorStatus').value,inPerson:document.getElementById('inPerson').value,outDate:document.getElementById('outDate').value,outPerson:document.getElementById('outPerson').value,location:document.getElementById('location').value,imgStatus:document.getElementById('imgStatus').value,shootType:document.getElementById('shootType').value,remark:document.getElementById('remark').value.trim(),imageUrl:document.getElementById('imageUrl').value.trim(),extra:''};
   if(!rec.date||!rec.style||!rec.qty||!rec.inPerson){showToast('请填写必填项','error');return}
-  try{await api('POST','/api/records',{sheet:SHEET,record:rec});closeModal();await loadFullData();showToast('新增成功 ✅','success')}catch(e){showToast('保存失败','error')}
+  try{let r=await api('POST','/api/records',{sheet:SHEET,record:rec});closeModal();data.main.push(r.record);serverVersion=r.version;renderAll();showToast('新增成功 ✅','success')}catch(e){showToast('保存失败','error')}
 }
 async function deleteById(id){
   let rec=getCurrentData().find(r=>r.id===id);if(!rec)return;
   if(!confirm('确定删除？\n款式: '+rec.style+'\n日期: '+formatDate(rec.date)))return;
-  try{await api('DELETE','/api/records/'+SHEET+'/'+id);await loadFullData();showToast('已删除 🗑','success')}catch(e){showToast('删除失败','error')}
+  try{let r=await api('DELETE','/api/records/'+SHEET+'/'+id);data.main=data.main.filter(x=>x.id!==id);serverVersion=r.version;renderAll();showToast('已删除 🗑','success')}catch(e){showToast('删除失败','error')}
 }
 function closeModal(e){if(e&&e.target!==document.getElementById('modalOverlay'))return;document.getElementById('modalOverlay').style.display='none'}
 
