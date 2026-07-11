@@ -698,6 +698,13 @@ function showSyncToast(msg){let e=document.querySelector('.sync-toast');if(e)e.r
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeAllDropdowns()}if(e.ctrlKey&&e.key==='n'){e.preventDefault();openAddModal()}});
 
 async function init(){
+  // Use pre-embedded data for instant page load (no API wait)
+  if(window.__INITIAL_DATA__){
+    let d=window.__INITIAL_DATA__;
+    serverVersion=d.version;data.main=d.main||[];data.delivery=d.delivery||[];
+    setOnline(true);renderAll();
+  }
+  // Then sync with server to get latest data
   await loadFullData();
   pollTimer=setInterval(checkVersion,POLL_INTERVAL);
 }
