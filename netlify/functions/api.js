@@ -1,4 +1,6 @@
 const https = require('https');
+const fs = require('fs');
+const path = require('path');
 
 const BLOB_ID = process.env.BLOB_ID || '019f4c85-55fd-77f7-939b-15b52add4bce';
 const BLOB_URL = `https://jsonblob.com/api/jsonBlob/${BLOB_ID}`;
@@ -29,26 +31,17 @@ function httpRequest(url, method, body) {
   return new Promise((resolve, reject) => {
     const u = new URL(url);
     const opts = {
-      hostname: u.hostname,
-      path: u.pathname + u.search,
+      hostname: u.hostname, path: u.pathname + u.search,
       method: method || 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json; charset=utf-8'
-      }
+      headers: { 'Accept': 'application/json', 'Content-Type': 'application/json; charset=utf-8' }
     };
-    if (method === 'PUT' && body) {
-      opts.headers['Content-Length'] = Buffer.byteLength(body);
-    }
+    if (method === 'PUT' && body) opts.headers['Content-Length'] = Buffer.byteLength(body);
     const req = https.request(opts, (res) => {
-      let data = '';
-      res.on('data', c => data += c);
+      let data = ''; res.on('data', c => data += c);
       res.on('end', () => {
         if (res.statusCode >= 200 && res.statusCode < 300) {
           try { resolve(JSON.parse(data)); } catch(e) { resolve(data); }
-        } else {
-          reject(new Error('HTTP ' + res.statusCode + ': ' + data.slice(0, 100)));
-        }
+        } else { reject(new Error('HTTP ' + res.statusCode)); }
       });
     });
     req.on('error', reject);
@@ -64,7 +57,6 @@ async function loadFromBlob() {
     cache = data;
     return data;
   } catch(e) {
-    console.error('Load error:', e.message);
     if (cache) return JSON.parse(JSON.stringify(cache));
     return JSON.parse(JSON.stringify(defaultData));
   }
@@ -75,94 +67,115 @@ async function saveToBlob(data) {
     await httpRequest(BLOB_URL, 'PUT', JSON.stringify(data));
     cache = data;
     return true;
-  } catch(e) {
-    console.error('Save error:', e.message);
-    return false;
-  }
+  } catch(e) { return false; }
 }
 
-function headers() {
-  return {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type'
-  };
-}
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type'
+};
 
-exports.handler = async (event) => {
-  const h = headers();
-  
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 204, headers: h, body: '' };
-  }
-
-  // Normalize path to /api/...
-  let path = event.path || event.rawPath || '/';
-  if (path.includes('/.netlify/functions/api')) {
-    path = path.replace('/.netlify/functions/api', '/api');
-  }
-  if (!path.startsWith('/api')) {
-    path = '/api' + path;
-  }
+function handleApi(path, method, body) {
   const parts = path.split('/').filter(Boolean);
-  
-  let body = {};
-  try { if (event.body) body = JSON.parse(event.body); } catch(e) {}
+  const apiPath = '/api' + path.replace('/.netlify/functions/api', '');
+  if (apiPath !== '/api') path = apiPath;
 
-  try {
-    // GET /api/version
-    if (event.httpMethod === 'GET' && path === '/api/version') {
-      const d = await loadFromBlob();
-      return { statusCode: 200, headers: { ...h, 'Content-Type': 'application/json;charset=utf-8' }, body: JSON.stringify({ version: d.version }) };
-    }
-
-    // GET /api/data
-    if (event.httpMethod === 'GET' && path === '/api/data') {
-      const d = await loadFromBlob();
-      return { statusCode: 200, headers: { ...h, 'Content-Type': 'application/json;charset=utf-8' }, body: JSON.stringify(d) };
-    }
-
-    // POST /api/records
-    if (event.httpMethod === 'POST' && path === '/api/records') {
-      let d = await loadFromBlob();
-      let rec = body.record || {};
-      rec.id = Date.now();
+  // GET /api/version
+  if (method === 'GET' && path === '/api/version') {
+    return loadFromBlob().then(d => ({ code: 200, body: JSON.stringify({ version: d.version }) }));
+  }
+  // GET /api/data
+  if (method === 'GET' && path === '/api/data') {
+    return loadFromBlob().then(d => ({ code: 200, body: JSON.stringify(d) }));
+  }
+  // POST /api/records
+  if (method === 'POST' && path === '/api/records') {
+    return loadFromBlob().then(async d => {
+      let rec = body.record || {}; rec.id = Date.now();
       d[body.sheet || 'main'] = d[body.sheet || 'main'] || [];
-      d[body.sheet || 'main'].push(rec);
-      d.version = (d.version || 0) + 1;
+      d[body.sheet || 'main'].push(rec); d.version = (d.version || 0) + 1;
       const ok = await saveToBlob(d);
-      if (!ok) return { statusCode: 500, headers: { ...h, 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Save failed' }) };
-      return { statusCode: 200, headers: { ...h, 'Content-Type': 'application/json;charset=utf-8' }, body: JSON.stringify({ success: true, record: rec, version: d.version }) };
-    }
-
-    // PUT /api/records/:sheet/:id/field
-    if (event.httpMethod === 'PUT' && parts.length >= 5 && parts[0] === 'api' && parts[1] === 'records' && parts[4] === 'field') {
-      let d = await loadFromBlob();
+      if (!ok) return { code: 500, body: JSON.stringify({ error: 'Save failed' }) };
+      return { code: 200, body: JSON.stringify({ success: true, record: rec, version: d.version }) };
+    });
+  }
+  // PUT /api/records/:sheet/:id/field
+  if (method === 'PUT' && parts.length >= 5 && parts[0] === 'api' && parts[1] === 'records' && parts[4] === 'field') {
+    return loadFromBlob().then(async d => {
       let sheet = parts[2], rid = parseInt(parts[3]);
       let rec = (d[sheet] || []).find(r => r.id === rid);
       if (rec) {
-        rec[body.field] = body.value;
-        d.version = (d.version || 0) + 1;
+        rec[body.field] = body.value; d.version = (d.version || 0) + 1;
         const ok = await saveToBlob(d);
-        if (!ok) return { statusCode: 500, headers: { ...h, 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Save failed' }) };
-        return { statusCode: 200, headers: { ...h, 'Content-Type': 'application/json;charset=utf-8' }, body: JSON.stringify({ success: true, record: rec, version: d.version }) };
+        if (!ok) return { code: 500, body: JSON.stringify({ error: 'Save failed' }) };
+        return { code: 200, body: JSON.stringify({ success: true, record: rec, version: d.version }) };
       }
-      return { statusCode: 404, headers: h, body: 'not found' };
-    }
-
-    // DELETE /api/records/:sheet/:id
-    if (event.httpMethod === 'DELETE' && parts.length === 4 && parts[0] === 'api' && parts[1] === 'records') {
-      let d = await loadFromBlob();
+      return { code: 404, body: 'not found' };
+    });
+  }
+  // DELETE /api/records/:sheet/:id
+  if (method === 'DELETE' && parts.length === 4 && parts[0] === 'api' && parts[1] === 'records') {
+    return loadFromBlob().then(async d => {
       let sheet = parts[2], rid = parseInt(parts[3]);
-      d[sheet] = (d[sheet] || []).filter(r => r.id !== rid);
-      d.version = (d.version || 0) + 1;
+      d[sheet] = (d[sheet] || []).filter(r => r.id !== rid); d.version = (d.version || 0) + 1;
       const ok = await saveToBlob(d);
-      if (!ok) return { statusCode: 500, headers: { ...h, 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Save failed' }) };
-      return { statusCode: 200, headers: { ...h, 'Content-Type': 'application/json;charset=utf-8' }, body: JSON.stringify({ success: true, version: d.version }) };
-    }
+      if (!ok) return { code: 500, body: JSON.stringify({ error: 'Save failed' }) };
+      return { code: 200, body: JSON.stringify({ success: true, version: d.version }) };
+    });
+  }
+  return Promise.resolve({ code: 404, body: JSON.stringify({ error: 'API not found' }) });
+}
 
-    return { statusCode: 404, headers: { ...h, 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'API not found', path, method: event.httpMethod }) };
-  } catch(err) {
-    return { statusCode: 500, headers: { ...h, 'Content-Type': 'application/json' }, body: JSON.stringify({ error: err.message, path, method: event.httpMethod }) };
+// Read and cache HTML template
+let htmlTemplate = null;
+
+function getHtmlTemplate() {
+  if (htmlTemplate) return htmlTemplate;
+  const htmlPath = path.join(__dirname, '..', '..', 'index.html');
+  if (fs.existsSync(htmlPath)) {
+    htmlTemplate = fs.readFileSync(htmlPath, 'utf-8');
+  }
+  return htmlTemplate || '<html><body>Loading...</body></html>';
+}
+
+exports.handler = async (event) => {
+  const rawPath = event.path || '';
+  const apiSuffix = rawPath.replace('/.netlify/functions/api', '');
+  
+  // API requests have a suffix path (e.g., /data, /version, /records)
+  if (apiSuffix && apiSuffix !== '' && apiSuffix !== '/') {
+    try {
+      let body = {};
+      try { if (event.body) body = JSON.parse(event.body); } catch(e) {}
+      const result = await handleApi(event.path, event.httpMethod, body);
+      return {
+        statusCode: result.code,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json;charset=utf-8' },
+        body: result.body
+      };
+    } catch(err) {
+      return { statusCode: 500, headers: corsHeaders, body: JSON.stringify({ error: err.message }) };
+    }
+  }
+
+  // Serve HTML page with embedded data for instant load
+  try {
+    const data = await loadFromBlob();
+    let html = getHtmlTemplate();
+    // Inject data before </head> so it's available immediately
+    const injectScript = '<script>window.__INITIAL_DATA__=' + JSON.stringify(data) + ';</script>';
+    html = html.replace('</head>', injectScript + '</head>');
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'text/html;charset=utf-8' },
+      body: html
+    };
+  } catch(e) {
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'text/html;charset=utf-8' },
+      body: getHtmlTemplate()
+    };
   }
 };
