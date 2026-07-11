@@ -124,6 +124,13 @@ td.editing input,td.editing select{width:100%;height:100%;border:2px solid var(-
 /* add row */
 tr.add-row td{border-top:1px dashed #e5e7eb;background:transparent}
 tr.add-row:hover td{background:#fafbff}
+.row-num{color:#9ca3af;font-size:11px}
+.remark-cell{max-width:140px;overflow:hidden;text-overflow:ellipsis}
+.add-row-btn{width:18px;height:18px;border-radius:50%;border:1px solid #d1d5db;background:#fff;color:#9ca3af;cursor:pointer;font-size:12px;line-height:1;padding:0;transition:all .15s}
+.add-row-btn:hover{background:#f3f4f6;color:#666}
+.add-row-hint{color:#d1d5db;font-size:11px}
+.img-add-btn{color:#9ca3af;cursor:pointer;font-size:12px;white-space:nowrap}
+.img-add-btn:hover{color:#4f6ef7}
 
 .img-upload-cell{cursor:pointer;text-align:center;vertical-align:middle;transition:background .1s;min-width:52px}
 .img-upload-cell:hover{background:#f5f6f8}
@@ -580,10 +587,15 @@ function _renderFilteredTable(rows){
   document.getElementById('tableTitle').innerHTML=ttl;
   if(!rows.length){tbody.innerHTML='';es.style.display='block';return}
   es.style.display='none';closeAllDropdowns();
-  tbody.innerHTML=rows.map((r,i)=>{
+  // Use insertAdjacentHTML (faster than innerHTML) and avoid URL duplication in onclick
+  tbody.textContent='';
+  tbody.insertAdjacentHTML('beforeend',rows.map((r,i)=>{
     let dd=formatDate(r.date),od=formatDate(r.outDate);
+    let imgCell=r.imageUrl
+      ?'<div class="img-thumb"><img src="'+r.imageUrl+'" onclick="viewImage(event)" title="点击放大查看"><span class="img-replace" onclick="uploadImage(event,'+r.id+')" title="更换图片">＋</span></div>'
+      :'<span class="img-add-btn" onclick="uploadImage(event,'+r.id+')">＋ 添加图片</span>';
     return'<tr data-id="'+r.id+'">'+
-      '<td style="color:#9ca3af;font-size:11px">'+(i+1)+'</td>'+
+      '<td class="row-num">'+(i+1)+'</td>'+
       '<td class="date-cell editable" data-field="date" data-id="'+r.id+'">'+(dd||'点击编辑')+'</td>'+
       '<td class="style-cell editable" data-field="style" data-id="'+r.id+'">'+(r.style||'点击编辑')+'</td>'+
       '<td class="qty-cell editable" data-field="qty" data-id="'+r.id+'">'+(r.qty||'点击编辑')+'</td>'+
@@ -594,11 +606,11 @@ function _renderFilteredTable(rows){
       '<td class="editable dropdown-cell" data-field="location" data-id="'+r.id+'">'+makeLocBadge(r.location)+'</td>'+
       '<td class="editable dropdown-cell" data-field="imgStatus" data-id="'+r.id+'">'+makeImgBadge(r.imgStatus)+'</td>'+
       '<td class="editable dropdown-cell" data-field="shootType" data-id="'+r.id+'">'+makeTypeBadge(r.shootType)+'</td>'+
-      '<td class="editable" data-field="remark" data-id="'+r.id+'" style="max-width:140px;overflow:hidden;text-overflow:ellipsis" title="'+(r.remark||'')+'">'+(r.remark||'点击编辑')+'</td>'+
-      '<td class="img-upload-cell" data-field="imageUrl" data-id="'+r.id+'">'+(r.imageUrl?'<div class="img-thumb"><img src="'+r.imageUrl+'" onclick="viewImage(event,\''+r.imageUrl+'\')" title="点击放大查看"><span class="img-replace" onclick="uploadImage(event,'+r.id+')" title="更换图片">＋</span></div>':'<span style="color:#9ca3af;cursor:pointer;font-size:12px;white-space:nowrap" onclick="uploadImage(event,'+r.id+')">＋ 添加图片</span>')+'</td>'+
+      '<td class="editable remark-cell" data-field="remark" data-id="'+r.id+'" title="'+(r.remark||'')+'">'+(r.remark||'点击编辑')+'</td>'+
+      '<td class="img-upload-cell" data-field="imageUrl" data-id="'+r.id+'">'+imgCell+'</td>'+
       '<td><button class="btn btn-danger btn-xs" onclick="deleteById('+r.id+')">🗑</button></td></tr>';
   }).join('')+
-  '<tr class="add-row" id="addRow"><td style="text-align:center;padding:5px"><button onclick="addBlankRow()" style="width:18px;height:18px;border-radius:50%;border:1px solid #d1d5db;background:#fff;color:#9ca3af;cursor:pointer;font-size:12px;line-height:1;padding:0;transition:all .15s" onmouseover="this.style.background=\'#f3f4f6\';this.style.color=\'#666\'" onmouseout="this.style.background=\'#fff\';this.style.color=\'#9ca3af\'" title="添加新行">＋</button></td><td colspan="13" style="color:#d1d5db;font-size:11px">添加新行</td></tr>';
+  '<tr class="add-row" id="addRow"><td style="text-align:center;padding:5px"><button onclick="addBlankRow()" class="add-row-btn">＋</button></td><td colspan="13" class="add-row-hint">添加新行</td></tr>');
 }
 
 // ══ Modal ══
@@ -646,7 +658,7 @@ function uploadImage(e,id){
             try{await api('PUT','/api/records/'+SHEET+'/'+id+'/field',{field:'imageUrl',value:compressed})}catch(e){}
             // Update only this cell, not the whole table
             let cell=document.querySelector('td.img-upload-cell[data-id="'+id+'"]');
-            if(cell)cell.innerHTML='<div class="img-thumb"><img src="'+compressed+'" onclick="viewImage(event,\''+compressed+'\')" title="点击放大查看"><span class="img-replace" onclick="uploadImage(event,'+id+')" title="更换图片">\uff0b</span></div>';
+            if(cell)cell.innerHTML='<div class="img-thumb"><img src="'+compressed+'" onclick="viewImage(event)" title="点击放大查看"><span class="img-replace" onclick="uploadImage(event,'+id+')" title="更换图片">\uff0b</span></div>';
             showToast('图片已保存 ✅','success')}
         }catch(err){
           showToast('存储不足，请清理旧图片','error');
@@ -663,8 +675,9 @@ function uploadImage(e,id){
 }
 
 // ══ Image viewer - click to enlarge ══
-function viewImage(e,url){
+function viewImage(e){
   e.stopPropagation();e.preventDefault();
+  let url=e.target.src;
   let ov=document.createElement('div');ov.className='img-viewer';
   ov.innerHTML='<img src="'+url+'"><button class="img-close">✕</button>';
   ov.onclick=function(){ov.remove()};
