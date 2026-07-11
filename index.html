@@ -276,7 +276,7 @@ tr.add-row:hover td{background:#fafbff}
 <div id="toastContainer"></div>
 
 <script>
-const API_BASE='',POLL_INTERVAL=5000,SHEET='main';
+const API_BASE='',POLL_INTERVAL=10000,SHEET='main';
 let serverVersion=0,data={main:[],delivery:[]},currentShootType='',sortField='',sortDir='asc',pollTimer=null;
 
 // ══ API ══
@@ -434,7 +434,7 @@ function openDropdown(td,field,id,currentValue){
         let rec=getCurrentData().find(r=>r.id===id);
         if(rec)rec[field]=opt.value;
         updateCell(td,field,opt.value);
-        renderStats();
+        if(field==='shootType'||field==='date'||field==='outDate')renderStats();
       }catch(e){showToast('保存失败','error')}
     };
     menu.appendChild(item);
@@ -644,7 +644,10 @@ function uploadImage(e,id){
           let rec=getCurrentData().find(r=>r.id===id);
           if(rec){rec.imageUrl=compressed;
             try{await api('PUT','/api/records/'+SHEET+'/'+id+'/field',{field:'imageUrl',value:compressed})}catch(e){}
-            renderAll();showToast('图片已保存 ✅','success')}
+            // Update only this cell, not the whole table
+            let cell=document.querySelector('td.img-upload-cell[data-id="'+id+'"]');
+            if(cell)cell.innerHTML='<div class="img-thumb"><img src="'+compressed+'" onclick="viewImage(event,\''+compressed+'\')" title="点击放大查看"><span class="img-replace" onclick="uploadImage(event,'+id+')" title="更换图片">\uff0b</span></div>';
+            showToast('图片已保存 ✅','success')}
         }catch(err){
           showToast('存储不足，请清理旧图片','error');
         }
