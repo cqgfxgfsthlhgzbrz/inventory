@@ -550,7 +550,7 @@ document.addEventListener('mousedown',function(e){
 
 // ══ Add blank row ══
 async function addBlankRow(){
-  let record={date:new Date().toISOString().split('T')[0].replace(/-/g,'.'),style:'',qty:'',colorStatus:'',inPerson:'',outDate:'',outPerson:'',location:'',imgStatus:'',shootType:'',remark:'',imageUrl:'',extra:'',productImage:'',referenceImage:'',shootStyle:'',shootSize:'',isFinalized:'',estimatedShipDate:''};
+  let record={date:new Date().toISOString().split('T')[0].replace(/-/g,'.'),style:'',qty:'',colorStatus:'',inPerson:'',outDate:'',outPerson:'',location:'',imgStatus:'',shootType:currentShootType||'',remark:'',imageUrl:'',extra:'',productImage:'',referenceImage:'',shootStyle:'',shootSize:'',isFinalized:'',estimatedShipDate:''};
   try{
     let r=await api('POST','/api/records',{sheet:SHEET,record});
     data.main.push(r.record);serverVersion=r.version;renderAll();
@@ -597,8 +597,10 @@ function doSearch(){
   try{
     let val=document.getElementById('searchInput').value.toLowerCase().trim();
     let rows=getCurrentData();
-    // shoot type
+    // shoot type filter
+    const specificTypes=['A店拍摄计划','B店拍摄计划','C店拍摄计划','D店拍摄计划','视觉库'];
     if(currentShootType)rows=rows.filter(r=>r.shootType===currentShootType);
+    else rows=rows.filter(r=>!r.shootType||specificTypes.indexOf(r.shootType)===-1);
     // text filter
     if(val)rows=rows.filter(r=>Object.values(r).some(v=>String(v||'').toLowerCase().includes(val)));
     // sort
