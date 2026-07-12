@@ -344,7 +344,9 @@ function makeColorBadge(v){
 
 // ══ Render ══
 function renderStats(){
-  let rows=getCurrentData(),total=rows.length;
+  // Stats only count 样衣出入库情况 records (exclude A/B/C/D/视觉库)
+  let specific=['A店拍摄计划','B店拍摄计划','C店拍摄计划','D店拍摄计划','视觉库'];
+  let rows=getCurrentData().filter(r=>!r.shootType||specific.indexOf(r.shootType)===-1),total=rows.length;
   let inc=rows.filter(r=>r.date).length,outc=rows.filter(r=>r.outDate).length;
   document.getElementById('statsRow').innerHTML=
     '<div class="stat-card"><div class="stat-icon blue">📋</div><div class="stat-info"><div class="stat-num">'+total+'</div><div class="stat-label">总记录数</div></div></div>'+
