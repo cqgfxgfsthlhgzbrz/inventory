@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 const PORT = process.env.PORT || 3000;
-const BLOB_ID = process.env.BLOB_ID || '019f4c85-55fd-77f7-939b-15b52add4bce';
+const BLOB_ID = process.env.BLOB_ID || '019f565e-6442-7884-85c9-aaba6f63ddac';
 const BLOB_URL = `https://jsonblob.com/api/jsonBlob/${BLOB_ID}`;
 
 const defaultData = {
