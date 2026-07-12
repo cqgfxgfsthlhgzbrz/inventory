@@ -137,8 +137,10 @@ tr.add-row:hover td{background:#fafbff}
 .add-row-btn{width:18px;height:18px;border-radius:50%;border:1px solid #d1d5db;background:#fff;color:#9ca3af;cursor:pointer;font-size:12px;line-height:1;padding:0;transition:all .15s}
 .add-row-btn:hover{background:#f3f4f6;color:#666}
 .add-row-hint{color:#d1d5db;font-size:11px}
-.img-add-btn{color:#9ca3af;cursor:pointer;font-size:24px;font-weight:700;display:inline-block;width:44px;height:44px;line-height:44px;text-align:center;border:2px dashed #d1d5db;border-radius:6px;transition:all .15s}
-.img-add-btn:hover{color:#4f6ef7;border-color:#4f6ef7;background:#eef1fe}
+.img-add-btn{color:#9ca3af;cursor:pointer;font-size:12px;white-space:nowrap}
+.img-add-btn:hover{color:#4f6ef7}
+.img-btn-big{color:#9ca3af;cursor:pointer;font-size:24px;font-weight:700;display:inline-block;width:44px;height:44px;line-height:44px;text-align:center;border:2px dashed #d1d5db;border-radius:6px;transition:all .15s}
+.img-btn-big:hover{color:#4f6ef7;border-color:#4f6ef7;background:#eef1fe}
 
 .img-upload-cell{cursor:pointer;text-align:center;vertical-align:middle;transition:background .1s;min-width:52px}
 .img-upload-cell:hover{background:#f5f6f8}
@@ -376,6 +378,7 @@ function updateCell(td,field,value){
   if(field==='location')td.innerHTML=makeLocBadge(value);
   else if(field==='imgStatus')td.innerHTML=makeImgBadge(value);
   else if(field==='store')td.innerHTML=(value==='A店拍摄'?'<span class="badge badge-a">A店拍摄</span>':value==='B店拍摄'?'<span class="badge badge-b">B店拍摄</span>':value==='C店拍摄'?'<span class="badge badge-c">C店拍摄</span>':value==='D店拍摄'?'<span class="badge badge-d">D店拍摄</span>':'<span class="badge badge-none">--</span>');
+  else if(field==='shootStyle')td.innerHTML=(value==='3d'?'<span class="badge badge-draft">3d</span>':value==='平铺'?'<span class="badge badge-set">平铺</span>':value==='挂拍'?'<span class="badge badge-orange">挂拍</span>':'<span class="badge badge-none">--</span>');
   else if(field==='colorStatus'){
     if(currentShootType==='A店拍摄计划'||currentShootType==='B店拍摄计划'||currentShootType==='C店拍摄计划'||currentShootType==='D店拍摄计划')td.textContent=value||'点击编辑';
     else td.innerHTML=makeColorBadge(value);
@@ -567,11 +570,9 @@ document.addEventListener('mousedown',function(e){
 // ══ Add blank row ══
 async function addBlankRow(){
   let record={date:new Date().toISOString().split('T')[0].replace(/-/g,'.'),style:'',qty:'',colorStatus:'',inPerson:'',outDate:'',outPerson:'',location:'',imgStatus:'',shootType:currentShootType||'',remark:'',imageUrl:'',extra:'',productImage:'',referenceImage:'',shootStyle:'',shootSize:'',isFinalized:'',estimatedShipDate:''};
-  try{
-    let r=await api('POST','/api/records',{sheet:SHEET,record});
-    data.main.push(r.record);serverVersion=r.version;renderAll();
-    showToast('空白行已添加 ✅','success');
-  }catch(e){showToast('添加失败','error')}
+  // Optimistic: add to local data + render immediately
+  record.id=Date.now();data.main.push(record);renderAll();showToast('空白行已添加 ✅','success');
+  try{let r=await api('POST','/api/records',{sheet:SHEET,record});serverVersion=r.version}catch(e){data.main=data.main.filter(x=>x.id!==record.id);renderAll();showToast('添加失败','error')}
 }
 
 function finishEdit(el){
@@ -684,8 +685,8 @@ function _renderFilteredTable(rows){
     // 拍摄计划 layout: 款号 产品图 参考图 风格 拍摄尺码 样衣交付时间 预计发货时间 是否定稿 颜色共计
     tbody.insertAdjacentHTML('beforeend',rows.map((r,i)=>{
       let od=formatDate(r.outDate),ed=formatDate(r.estimatedShipDate);
-      let prodImg=r.productImage?'<div class="img-thumb"><img src="'+r.productImage+'" onclick="viewImage(event)" title="点击放大查看"><span class="img-replace" onclick="uploadImage(event,'+r.id+',\'productImage\')" title="更换图片">＋</span></div>':'<span class="img-add-btn" onclick="uploadImage(event,'+r.id+',\'productImage\')">＋</span>';
-      let refImg=r.referenceImage?'<div class="img-thumb"><img src="'+r.referenceImage+'" onclick="viewImage(event)" title="点击放大查看"><span class="img-replace" onclick="uploadImage(event,'+r.id+',\'referenceImage\')" title="更换图片">＋</span></div>':'<span class="img-add-btn" onclick="uploadImage(event,'+r.id+',\'referenceImage\')">＋</span>';
+      let prodImg=r.productImage?'<div class="img-thumb"><img src="'+r.productImage+'" onclick="viewImage(event)" title="点击放大查看"><span class="img-replace" onclick="uploadImage(event,'+r.id+',\'productImage\')" title="更换图片">＋</span></div>':'<span class="img-btn-big" onclick="uploadImage(event,'+r.id+',\'productImage\')">＋</span>';
+      let refImg=r.referenceImage?'<div class="img-thumb"><img src="'+r.referenceImage+'" onclick="viewImage(event)" title="点击放大查看"><span class="img-replace" onclick="uploadImage(event,'+r.id+',\'referenceImage\')" title="更换图片">＋</span></div>':'<span class="img-btn-big" onclick="uploadImage(event,'+r.id+',\'referenceImage\')">＋</span>';
       return'<tr data-id="'+r.id+'">'+
         '<td class="row-num">'+(i+1)+'</td>'+
         '<td class="style-cell editable" data-field="style" data-id="'+r.id+'">'+(r.style||'点击编辑')+'</td>'+
