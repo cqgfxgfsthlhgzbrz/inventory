@@ -120,6 +120,10 @@ td.editing input,td.editing select{width:100%;height:100%;border:2px solid var(-
 .badge-warehouse{background:#ecfdf5;color:#059669}
 .badge-draft{background:#f5f3ff;color:#7c3aed}
 .badge-set{background:#f0fdfa;color:#0d9488}
+.badge-a{background:#f5f3ff;color:#7c3aed}
+.badge-b{background:#eff6ff;color:#1d4ed8}
+.badge-c{background:#f0fdfa;color:#0d9488}
+.badge-d{background:#fff7ed;color:#c2410c}
 .badge-green{background:#ecfdf5;color:#059669}
 .badge-red{background:#fef2f2;color:#dc2626}
 .badge-blue{background:#eff6ff;color:#1d4ed8}
@@ -274,7 +278,7 @@ tr.add-row:hover td{background:#fafbff}
         <div class="form-group"><label>📍 目前位置</label><select id="location"><option value="">--</option><option value="影棚">影棚</option><option value="办公室">办公室</option><option value="仓库">仓库</option></select></div>
         <div class="form-group"><label>📸 图片交付</label><select id="imgStatus"><option value="">--</option><option value="已交付">✅ 已交付</option><option value="未交付">⏳ 未交付</option></select></div>
       </div>
-      <div class="form-group"><label>📷 拍摄类型</label><select id="shootType"><option value="">--</option><option value="A店拍摄计划">A店拍摄计划</option><option value="B店拍摄计划">B店拍摄计划</option><option value="C店拍摄计划">C店拍摄计划</option><option value="D店拍摄计划">D店拍摄计划</option><option value="视觉库">视觉库</option></select></div>
+      <div class="form-group"><label>📷 所属店铺</label><select id="shootTypeSel"><option value="">--</option><option value="A店拍摄计划">A店拍摄</option><option value="B店拍摄计划">B店拍摄</option><option value="C店拍摄计划">C店拍摄</option><option value="D店拍摄计划">D店拍摄</option><option value="视觉库">视觉库</option></select></div>
       <div class="form-row">
         <div class="form-group"><label>📝 备注</label><textarea id="remark" placeholder="备注信息..."></textarea></div>
         <div class="form-group"><label>🖼 图片位置</label><input type="text" id="imageUrl" placeholder="图片路径或链接"></div>
@@ -332,7 +336,7 @@ function makeImgBadge(v){
 }
 function makeTypeBadge(v){
   if(!v)return'<span class="badge badge-none">--</span>';
-  return'<span class="badge '+(v==='A店拍摄计划'||v==='B店拍摄计划'?'badge-draft':v==='C店拍摄计划'||v==='D店拍摄计划'?'badge-set':v==='视觉库'?'badge-blue':'badge-none')+'">'+v+'</span>';
+  return'<span class="badge '+(v==='A店拍摄'||v==='A店拍摄计划'?'badge-a':v==='B店拍摄'||v==='B店拍摄计划'?'badge-b':v==='C店拍摄'||v==='C店拍摄计划'?'badge-c':v==='D店拍摄'||v==='D店拍摄计划'?'badge-d':v==='视觉库'?'badge-blue':'badge-none')+'">'+v+'</span>';
 }
 function makeColorBadge(v){
   if(!v)return'<span class="badge badge-none">--</span>';
@@ -392,10 +396,10 @@ const imgOptions=[
 ];
 const typeOptions=[
   {value:'',label:'--',icon:''},
-  {value:'A店拍摄计划',label:'A店拍摄计划',icon:''},
-  {value:'B店拍摄计划',label:'B店拍摄计划',icon:''},
-  {value:'C店拍摄计划',label:'C店拍摄计划',icon:''},
-  {value:'D店拍摄计划',label:'D店拍摄计划',icon:''},
+  {value:'A店拍摄计划',label:'A店拍摄',icon:''},
+  {value:'B店拍摄计划',label:'B店拍摄',icon:''},
+  {value:'C店拍摄计划',label:'C店拍摄',icon:''},
+  {value:'D店拍摄计划',label:'D店拍摄',icon:''},
   {value:'视觉库',label:'视觉库',icon:''}
 ];
 const shootStyleOptions=[
@@ -657,7 +661,7 @@ function _renderFilteredTable(rows){
     '<th style="width:80px">出库交付人</th>'+
     '<th style="width:80px">目前位置</th>'+
     '<th style="width:75px">图片交付</th>'+
-    '<th style="width:85px">拍摄类型</th>'+
+    '<th style="width:85px">所属店铺</th>'+
     '<th style="min-width:80px">备注</th>'+
     '<th style="width:55px">图片</th>'+
     '<th style="width:50px">操作</th>';
@@ -717,11 +721,11 @@ function openAddModal(){
   document.getElementById('inDate').value=new Date().toISOString().split('T')[0];document.getElementById('outDate').value='';
   document.getElementById('style').value='';document.getElementById('qty').value='';document.getElementById('colorStatus').value='';document.getElementById('inPerson').value='';
   document.getElementById('outPerson').value='';document.getElementById('location').value='';document.getElementById('imgStatus').value='';
-  document.getElementById('shootType').value='';document.getElementById('remark').value='';document.getElementById('imageUrl').value='';
+  document.getElementById('shootTypeSel').value='';document.getElementById('remark').value='';document.getElementById('imageUrl').value='';
   document.getElementById('modalOverlay').style.display='flex';
 }
 async function saveRecord(){
-  let rec={date:document.getElementById('inDate').value,style:document.getElementById('style').value.trim(),qty:document.getElementById('qty').value.trim(),colorStatus:document.getElementById('colorStatus').value,inPerson:document.getElementById('inPerson').value,outDate:document.getElementById('outDate').value,outPerson:document.getElementById('outPerson').value,location:document.getElementById('location').value,imgStatus:document.getElementById('imgStatus').value,shootType:document.getElementById('shootType').value,remark:document.getElementById('remark').value.trim(),imageUrl:document.getElementById('imageUrl').value.trim(),extra:''};
+  let rec={date:document.getElementById('inDate').value,style:document.getElementById('style').value.trim(),qty:document.getElementById('qty').value.trim(),colorStatus:document.getElementById('colorStatus').value,inPerson:document.getElementById('inPerson').value,outDate:document.getElementById('outDate').value,outPerson:document.getElementById('outPerson').value,location:document.getElementById('location').value,imgStatus:document.getElementById('imgStatus').value,shootType:document.getElementById('shootTypeSel').value,remark:document.getElementById('remark').value.trim(),imageUrl:document.getElementById('imageUrl').value.trim(),extra:''};
   if(!rec.date||!rec.style||!rec.qty||!rec.inPerson){showToast('请填写必填项','error');return}
   try{let r=await api('POST','/api/records',{sheet:SHEET,record:rec});closeModal();data.main.push(r.record);serverVersion=r.version;renderAll();showToast('新增成功 ✅','success')}catch(e){showToast('保存失败','error')}
 }
