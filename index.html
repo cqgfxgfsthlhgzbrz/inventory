@@ -679,7 +679,7 @@ function _renderFilteredTable(rows){
         '<td class="editable" data-field="shootSize" data-id="'+r.id+'">'+(r.shootSize||'点击编辑')+'</td>'+
         '<td class="date-cell editable" data-field="outDate" data-id="'+r.id+'">'+(od||'点击编辑')+'</td>'+
         '<td class="date-cell editable" data-field="estimatedShipDate" data-id="'+r.id+'">'+(ed||'点击编辑')+'</td>'+
-        '<td class="editable dropdown-cell" data-field="isFinalized" data-id="'+r.id+'">'+(r.isFinalized==='是'?'<span class="badge badge-green">是</span>':r.isFinalized==='否'?'<span class="badge badge-red">否</span>':'<span class="badge badge-none">--</span>')+'</td>'+
+        '<td class="editable" data-field="isFinalized" data-id="'+r.id+'">'+(r.isFinalized||'点击编辑')+'</td>'+
         '<td class="editable" data-field="colorStatus" data-id="'+r.id+'">'+(r.colorStatus||'点击编辑')+'</td>'+
         '<td><button class="btn btn-danger btn-xs" onclick="deleteById('+r.id+')">🗑</button></td></tr>';
     }).join('')+
