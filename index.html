@@ -702,7 +702,7 @@ function _renderFilteredTable(rows){
     // Default layout
     tbody.insertAdjacentHTML('beforeend',rows.map((r,i)=>{
       let dd=formatDate(r.date),od=formatDate(r.outDate);
-      let imgCell=r.imageUrl?'<div class="img-thumb"><img src="'+r.imageUrl+'" onclick="viewImage(event)" title="点击放大查看"><span class="img-replace" onclick="uploadImage(event,'+r.id+',\'imageUrl\')" title="更换图片">＋</span></div>':'<span class="img-add-btn" onclick="uploadImage(event,'+r.id+',\'imageUrl\')">＋ 添加图片</span>';
+      let imgCell=r.imageUrl?'<div class="img-thumb"><img src="'+r.imageUrl+'" onclick="viewImage(event)" title="点击放大查看"><span class="img-replace" onclick="uploadImage(event,'+r.id+',\'imageUrl\')" title="更换图片">＋</span></div>':'<span class="img-add-btn" onclick="uploadImage(event,'+r.id+',\'imageUrl\')">＋</span>';
       return'<tr data-id="'+r.id+'">'+
         '<td class="row-num">'+(i+1)+'</td>'+
         '<td class="date-cell editable" data-field="date" data-id="'+r.id+'">'+(dd||'点击编辑')+'</td>'+
@@ -775,7 +775,7 @@ function uploadImage(e,id,field){
           let cell=document.querySelector('td.img-upload-cell[data-field="'+field+'"][data-id="'+id+'"]');
           if(cell)cell.innerHTML='<div class="img-thumb"><img src="'+compressed+'" onclick="viewImage(event)" title="点击放大查看"><span class="img-replace" onclick="uploadImage(event,'+id+',\''+field+'\')" title="更换图片">\uff0b</span></div>';
           showToast('图片已保存 ✅','success');
-          try{await api('PUT','/api/records/'+SHEET+'/'+id+'/field',{field:field,value:compressed})}catch(e){rec[field]=previousUrl;if(cell&&!rec[field])cell.innerHTML='<span class="img-add-btn" onclick="uploadImage(event,'+id+',\''+field+'\')">\uff0b 添加图片</span>';showToast('图片保存失败','error');}
+          try{await api('PUT','/api/records/'+SHEET+'/'+id+'/field',{field:field,value:compressed})}catch(e){rec[field]=previousUrl;if(cell&&!rec[field])cell.innerHTML='<span class="'+(field==='imageUrl'?'img-add-btn':'img-btn-big')+'" onclick="uploadImage(event,'+id+',\''+field+'\')">＋</span>';showToast('图片保存失败','error');}
         }
         input.remove();
       };
