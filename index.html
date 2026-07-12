@@ -189,6 +189,25 @@ tr.add-row:hover td{background:#fafbff}
 
 @media(max-width:1200px){.stats-row{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:768px){.stats-row{grid-template-columns:repeat(2,1fr)}.filter-section{flex-direction:column;align-items:flex-start}.search-box{margin-left:0;width:100%}.search-input{width:100%}.header{padding:0 16px;flex-wrap:wrap;height:auto;padding-top:10px;padding-bottom:10px}.main{padding:16px}.form-row{grid-template-columns:1fr}.modal{width:95vw}.header-actions{flex-wrap:wrap}}
+/* ══ Gallery Styles ══ */
+.gallery-tabs{display:flex;gap:8px;margin-bottom:16px}
+.gallery-tab{padding:8px 24px;border-radius:8px;border:2px solid var(--border);background:#fff;cursor:pointer;font-size:14px;font-weight:600;transition:all .15s}
+.gallery-tab:hover{border-color:#4f6ef7;color:#4f6ef7}
+.gallery-tab.active{background:#4f6ef7;color:#fff;border-color:#4f6ef7}
+.gallery-subtab{padding:6px 18px;border-radius:6px;border:1.5px solid var(--border);font-size:13px}
+.gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px}
+.gallery-card{background:#fff;border:1px solid var(--border);border-radius:10px;overflow:hidden;transition:all .15s;cursor:pointer}
+.gallery-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.1);transform:translateY(-2px)}
+.gallery-card img{width:100%;height:160px;object-fit:cover;display:block}
+.gallery-card-body{padding:10px 12px;display:flex;justify-content:space-between;align-items:center}
+.gallery-card-label{font-size:12px;font-weight:600;color:#374151}
+.gallery-card-action{font-size:11px;color:#9ca3af;cursor:pointer;padding:2px 8px;border-radius:4px}
+.gallery-card-action:hover{color:#ef4444;background:#fef2f2}
+.gallery-add-card{border:2px dashed #d1d5db;background:#fafbfc;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:200px;border-radius:10px;cursor:pointer;transition:all .15s;gap:8px}
+.gallery-add-card:hover{border-color:#4f6ef7;color:#4f6ef7;background:#eef1fe}
+.gallery-add-icon{font-size:32px;color:#9ca3af}
+.gallery-add-text{font-size:12px;color:#9ca3af}
+.gallery-add-card:hover .gallery-add-icon,.gallery-add-card:hover .gallery-add-text{color:#4f6ef7}
 </style>
 </head>
 <body>
@@ -636,7 +655,13 @@ function clearSearch(){
 function renderFilteredTable(rows){
   _renderFilteredTable(rows);
 }
+// ══ Gallery (视觉库) ══
+let galleryCategory='成人',gallerySubStyle='3d';function setGalleryCat(c){galleryCategory=c;renderAll()}function setGallerySub(s){gallerySubStyle=s;renderAll()}
+function renderGallery(rows){let tbody=document.getElementById('tableBody'),es=document.getElementById('emptyState'),theadRow=document.querySelector('#dataTable thead tr');rows=rows.filter(r=>(r.remark||'成人')===galleryCategory&&(r.shootStyle||'3d')===gallerySubStyle);document.getElementById('recordCount').textContent='共 '+rows.length+' 张';theadRow.innerHTML='';es.style.display='none';tbody.innerHTML='<tr><td colspan="14" style="padding:0;border:none"><div class="gallery-tabs"><div class="gallery-tab '+(galleryCategory==='成人'?'active':'')+'" onclick="setGalleryCat(\'成人\')">\u{1f9d1} 成人</div><div class="gallery-tab '+(galleryCategory==='童装'?'active':'')+'" onclick="setGalleryCat(\'童装\')">\u{1f476} 童装</div></div><div class="gallery-tabs" style="margin-bottom:20px"><div class="gallery-tab gallery-subtab '+(gallerySubStyle==='3d'?'active':'')+'" onclick="setGallerySub(\'3d\')">3d</div><div class="gallery-tab gallery-subtab '+(gallerySubStyle==='平铺'?'active':'')+'" onclick="setGallerySub(\'平铺\')">平铺</div><div class="gallery-tab gallery-subtab '+(gallerySubStyle==='挂拍'?'active':'')+'" onclick="setGallerySub(\'挂拍\')">挂拍</div></div><div class="gallery-grid">'+rows.map(r=>'<div class="gallery-card" onclick="viewImage(event)" title="'+(r.style||'')+'">'+(r.imageUrl?'<img src="'+r.imageUrl+'">':'<div style="height:160px;display:flex;align-items:center;justify-content:center;background:#f9fafb;color:#c4c9d0;font-size:13px">\u6682\u65e0\u56fe\u7247</div>')+'<div class="gallery-card-body"><span class="gallery-card-label">'+(r.style||'\u672a\u547d\u540d')+'</span><span class="gallery-card-action" onclick="event.stopPropagation();deleteById('+r.id+')">\u{1f5d1}</span></div></div>').join('')+'<div class="gallery-add-card" onclick="addGalleryImage()"><div class="gallery-add-icon">\uff0b</div><div class="gallery-add-text">\u6dfb\u52a0\u56fe\u7247</div></div></div></td></tr>'}
+async function addGalleryImage(){let label=prompt('\u56fe\u7247\u7f16\u53f7/\u540d\u79f0\uff1a',galleryCategory+(galleryCategory==='成人'?'CR':'TK')+'-'+Date.now().toString().slice(-4));if(!label)return;let rec={date:new Date().toISOString().split('T')[0].replace(/-/g,'.'),style:label,shootType:'视觉库',remark:galleryCategory,shootStyle:gallerySubStyle,imageUrl:'',qty:'',colorStatus:'',inPerson:'',outDate:'',outPerson:'',location:'',imgStatus:'',extra:'',productImage:'',referenceImage:'',isFinalized:'',estimatedShipDate:'',shootSize:''};rec.id=Date.now();data.main.push(rec);renderAll();showToast('已添加 '+label+' \u2705','success');try{let r=await api('POST','/api/records',{sheet:SHEET,record:rec});serverVersion=r.version}catch(e){data.main=data.main.filter(x=>x.id!==rec.id);renderAll();showToast('添加失败','error')}}
+
 function _renderFilteredTable(rows){
+  if(currentShootType==='视觉库'){ renderGallery(rows); return; }
   let tbody=document.getElementById('tableBody'),es=document.getElementById('emptyState');
   document.getElementById('recordCount').textContent='共 '+rows.length+' 条';
   let ttl='📊 样衣出入库情况';
