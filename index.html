@@ -283,7 +283,7 @@ tr.add-row:hover td{background:#fafbff}
 <div id="toastContainer"></div>
 
 <script>
-const API_BASE='',POLL_INTERVAL=10000,SHEET='main';
+const API_BASE='',POLL_INTERVAL=30000,SHEET='main';
 let serverVersion=0,data={main:[],delivery:[]},currentShootType='',sortField='',sortDir='asc',pollTimer=null;
 
 // ══ API ══
@@ -523,8 +523,8 @@ document.addEventListener('mousedown',function(e){
 async function addBlankRow(){
   let record={date:new Date().toISOString().split('T')[0].replace(/-/g,'.'),style:'',qty:'',colorStatus:'',inPerson:'',outDate:'',outPerson:'',location:'',imgStatus:'',shootType:'',remark:'',imageUrl:'',extra:''};
   try{
-    await api('POST','/api/records',{sheet:SHEET,record});
-    await loadFullData();
+    let r=await api('POST','/api/records',{sheet:SHEET,record});
+    data.main.push(r.record);serverVersion=r.version;renderAll();
     showToast('空白行已添加 ✅','success');
   }catch(e){showToast('添加失败','error')}
 }
