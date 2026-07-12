@@ -120,6 +120,10 @@ td.editing input,td.editing select{width:100%;height:100%;border:2px solid var(-
 .badge-warehouse{background:#ecfdf5;color:#059669}
 .badge-draft{background:#f5f3ff;color:#7c3aed}
 .badge-set{background:#f0fdfa;color:#0d9488}
+.badge-green{background:#ecfdf5;color:#059669}
+.badge-red{background:#fef2f2;color:#dc2626}
+.badge-blue{background:#eff6ff;color:#1d4ed8}
+.badge-orange{background:#fff7ed;color:#c2410c}
 
 /* add row */
 tr.add-row td{border-top:1px dashed #e5e7eb;background:transparent}
@@ -198,7 +202,7 @@ tr.add-row:hover td{background:#fafbff}
 <main class="main">
   <!-- 拍摄类型切换 -->
   <div class="type-tabs" id="typeTabs">
-    <button class="type-tab active" data-type="" onclick="setShootType('')">📋 全部</button>
+    <button class="type-tab active" data-type="" onclick="setShootType('')">📋 样衣出入库情况</button>
     <button class="type-tab" data-type="A店拍摄计划" onclick="setShootType('A店拍摄计划')">A店拍摄计划</button>
     <button class="type-tab" data-type="B店拍摄计划" onclick="setShootType('B店拍摄计划')">B店拍摄计划</button>
     <button class="type-tab" data-type="C店拍摄计划" onclick="setShootType('C店拍摄计划')">C店拍摄计划</button>
@@ -619,7 +623,7 @@ function renderFilteredTable(rows){
 function _renderFilteredTable(rows){
   let tbody=document.getElementById('tableBody'),es=document.getElementById('emptyState');
   document.getElementById('recordCount').textContent='共 '+rows.length+' 条';
-  let ttl='📊 记录列表';
+  let ttl='📊 样衣出入库情况';
   if(currentShootType)ttl='📊 '+currentShootType;
   document.getElementById('tableTitle').innerHTML=ttl;
 
@@ -669,7 +673,7 @@ function _renderFilteredTable(rows){
         '<td class="style-cell editable" data-field="style" data-id="'+r.id+'">'+(r.style||'点击编辑')+'</td>'+
         '<td class="img-upload-cell" data-field="productImage" data-id="'+r.id+'">'+prodImg+'</td>'+
         '<td class="img-upload-cell" data-field="referenceImage" data-id="'+r.id+'">'+refImg+'</td>'+
-        '<td class="editable dropdown-cell" data-field="shootStyle" data-id="'+r.id+'">'+(r.shootStyle?'<span class="badge badge-blue">'+r.shootStyle+'</span>':'<span class="badge badge-none">--</span>')+'</td>'+
+        '<td class="editable dropdown-cell" data-field="shootStyle" data-id="'+r.id+'">'+(r.shootStyle==='3d'?'<span class="badge badge-draft">3d</span>':r.shootStyle==='平铺'?'<span class="badge badge-set">平铺</span>':r.shootStyle==='挂拍'?'<span class="badge badge-orange">挂拍</span>':'<span class="badge badge-none">--</span>')+'</td>'+
         '<td class="editable" data-field="shootSize" data-id="'+r.id+'">'+(r.shootSize||'点击编辑')+'</td>'+
         '<td class="date-cell editable" data-field="outDate" data-id="'+r.id+'">'+(od||'点击编辑')+'</td>'+
         '<td class="date-cell editable" data-field="estimatedShipDate" data-id="'+r.id+'">'+(ed||'点击编辑')+'</td>'+
