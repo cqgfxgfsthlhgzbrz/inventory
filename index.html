@@ -633,11 +633,8 @@ function clearSearch(){
   document.getElementById('searchInput').focus();
 }
 
-// Direct table render with given rows (uses rAF to debounce rapid calls)
-let _renderRaf=null;
 function renderFilteredTable(rows){
-  if(_renderRaf)cancelAnimationFrame(_renderRaf);
-  _renderRaf=requestAnimationFrame(()=>{_renderRaf=null;_renderFilteredTable(rows)});
+  _renderFilteredTable(rows);
 }
 function _renderFilteredTable(rows){
   let tbody=document.getElementById('tableBody'),es=document.getElementById('emptyState');
