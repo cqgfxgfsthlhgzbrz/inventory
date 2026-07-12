@@ -377,7 +377,7 @@ function updateCell(td,field,value){
   else if(field==='imgStatus')td.innerHTML=makeImgBadge(value);
   else if(field==='store')td.innerHTML=(value==='A店拍摄'?'<span class="badge badge-a">A店拍摄</span>':value==='B店拍摄'?'<span class="badge badge-b">B店拍摄</span>':value==='C店拍摄'?'<span class="badge badge-c">C店拍摄</span>':value==='D店拍摄'?'<span class="badge badge-d">D店拍摄</span>':'<span class="badge badge-none">--</span>');
   else if(field==='colorStatus'){
-    if(currentShootType==='A店拍摄计划')td.textContent=value||'点击编辑';
+    if(currentShootType==='A店拍摄计划'||currentShootType==='B店拍摄计划'||currentShootType==='C店拍摄计划'||currentShootType==='D店拍摄计划')td.textContent=value||'点击编辑';
     else td.innerHTML=makeColorBadge(value);
   }
   else if(field==='inPerson'||field==='outPerson')td.textContent=value||'--';
@@ -647,8 +647,8 @@ function _renderFilteredTable(rows){
 
   // Update table header based on shoot type
   let theadRow=document.querySelector('#dataTable thead tr');
-  let isA=currentShootType==='A店拍摄计划';
-  theadRow.innerHTML=isA?
+  let isPlan=currentShootType==='A店拍摄计划'||currentShootType==='B店拍摄计划'||currentShootType==='C店拍摄计划'||currentShootType==='D店拍摄计划';
+  theadRow.innerHTML=isPlan?
     '<th style="width:36px">#</th>'+
     '<th style="width:100px">款号</th>'+
     '<th style="width:60px">产品图</th>'+
@@ -680,8 +680,8 @@ function _renderFilteredTable(rows){
   es.style.display='none';closeAllDropdowns();
 
   tbody.textContent='';
-  if(isA){
-    // A店拍摄计划 layout: 款号 产品图 参考图 风格 拍摄尺码 样衣交付时间 预计发货时间 是否定稿 颜色共计
+  if(isPlan){
+    // 拍摄计划 layout: 款号 产品图 参考图 风格 拍摄尺码 样衣交付时间 预计发货时间 是否定稿 颜色共计
     tbody.insertAdjacentHTML('beforeend',rows.map((r,i)=>{
       let od=formatDate(r.outDate),ed=formatDate(r.estimatedShipDate);
       let prodImg=r.productImage?'<div class="img-thumb"><img src="'+r.productImage+'" onclick="viewImage(event)" title="点击放大查看"><span class="img-replace" onclick="uploadImage(event,'+r.id+',\'productImage\')" title="更换图片">＋</span></div>':'<span class="img-add-btn" onclick="uploadImage(event,'+r.id+',\'productImage\')">＋</span>';
