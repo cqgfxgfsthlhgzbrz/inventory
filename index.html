@@ -436,13 +436,21 @@ function openDropdown(td,field,id,currentValue){
       e.stopPropagation();
       closeAllDropdowns();
       td.classList.remove('editing');
+      // Optimistic: update UI immediately, sync in background
+      let rec=getCurrentData().find(r=>r.id===id);
+      let previousValue=rec?rec[field]:'';
+      if(rec)rec[field]=opt.value;
+      updateCell(td,field,opt.value);
+      if(field==='shootType'||field==='date'||field==='outDate')renderStats();
       try{
         await api('PUT','/api/records/'+SHEET+'/'+id+'/field',{field,value:opt.value});
-        let rec=getCurrentData().find(r=>r.id===id);
-        if(rec)rec[field]=opt.value;
-        updateCell(td,field,opt.value);
+      }catch(e){
+        // Revert on failure
+        if(rec)rec[field]=previousValue;
+        updateCell(td,field,previousValue);
         if(field==='shootType'||field==='date'||field==='outDate')renderStats();
-      }catch(e){showToast('保存失败','error')}
+        showToast('保存失败','error');
+      }
     };
     menu.appendChild(item);
   });
@@ -543,11 +551,20 @@ function cancelEdit(td,id,field){
 async function commitEdit(td,field,id,value){
   td.classList.remove('editing');
   if(field==='date'||field==='outDate')value=value.replace(/-/g,'.');
-  await api('PUT','/api/records/'+SHEET+'/'+id+'/field',{field,value});
+  // Optimistic: update UI immediately, sync in background
   let rec=getCurrentData().find(r=>r.id===id);
+  let previousValue=rec?rec[field]:'';
   if(rec)rec[field]=value;
   updateCell(td,field,value);
   if(field==='date'||field==='outDate'||field==='shootType')renderStats();
+  try{
+    await api('PUT','/api/records/'+SHEET+'/'+id+'/field',{field,value});
+  }catch(e){
+    // Revert on failure
+    if(rec)rec[field]=previousValue;
+    updateCell(td,field,previousValue);
+    showToast('保存失败','error');
+  }
 }
 
 // ══ Actions ══
@@ -633,7 +650,11 @@ async function saveRecord(){
 async function deleteById(id){
   let rec=getCurrentData().find(r=>r.id===id);if(!rec)return;
   if(!confirm('确定删除？\n款式: '+rec.style+'\n日期: '+formatDate(rec.date)))return;
-  try{let r=await api('DELETE','/api/records/'+SHEET+'/'+id);data.main=data.main.filter(x=>x.id!==id);serverVersion=r.version;renderAll();showToast('已删除 🗑','success')}catch(e){showToast('删除失败','error')}
+  // Optimistic: remove from UI immediately
+  let backup=JSON.parse(JSON.stringify(rec));
+  data.main=data.main.filter(x=>x.id!==id);
+  renderAll();showToast('已删除 🗑','success');
+  try{let r=await api('DELETE','/api/records/'+SHEET+'/'+id);serverVersion=r.version}catch(e){data.main.push(backup);renderAll();showToast('删除失败，已恢复','error')}
 }
 function closeModal(e){if(e&&e.target!==document.getElementById('modalOverlay'))return;document.getElementById('modalOverlay').style.display='none'}
 
@@ -655,16 +676,15 @@ function uploadImage(e,id){
         c.width=img.width*scale;c.height=img.height*scale;
         let ctx=c.getContext('2d');ctx.drawImage(img,0,0,c.width,c.height);
         let compressed=c.toDataURL('image/jpeg',0.7);
-        try{
-          let rec=getCurrentData().find(r=>r.id===id);
-          if(rec){rec.imageUrl=compressed;
-            try{await api('PUT','/api/records/'+SHEET+'/'+id+'/field',{field:'imageUrl',value:compressed})}catch(e){}
-            // Update only this cell, not the whole table
-            let cell=document.querySelector('td.img-upload-cell[data-id="'+id+'"]');
-            if(cell)cell.innerHTML='<div class="img-thumb"><img src="'+compressed+'" onclick="viewImage(event)" title="点击放大查看"><span class="img-replace" onclick="uploadImage(event,'+id+')" title="更换图片">\uff0b</span></div>';
-            showToast('图片已保存 ✅','success')}
-        }catch(err){
-          showToast('存储不足，请清理旧图片','error');
+        let rec=getCurrentData().find(r=>r.id===id);
+        if(rec){
+          let previousUrl=rec.imageUrl||'';
+          rec.imageUrl=compressed;
+          // Update cell immediately
+          let cell=document.querySelector('td.img-upload-cell[data-id="'+id+'"]');
+          if(cell)cell.innerHTML='<div class="img-thumb"><img src="'+compressed+'" onclick="viewImage(event)" title="点击放大查看"><span class="img-replace" onclick="uploadImage(event,'+id+')" title="更换图片">\uff0b</span></div>';
+          showToast('图片已保存 ✅','success');
+          try{await api('PUT','/api/records/'+SHEET+'/'+id+'/field',{field:'imageUrl',value:compressed})}catch(e){rec.imageUrl=previousUrl;if(cell&&!rec.imageUrl)cell.innerHTML='<span class="img-add-btn" onclick="uploadImage(event,'+id+')">\uff0b 添加图片</span>';showToast('图片保存失败','error');}
         }
         input.remove();
       };
