@@ -4,8 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 const PORT = process.env.PORT || 3000;
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-if (!GITHUB_TOKEN) throw new Error('GITHUB_TOKEN environment variable required');
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN || '';
 const DATA_PATH = 'https://api.github.com/repos/cqgfxgfsthlhgzbrz/inventory/contents/data.json';
 
 const defaultData = {
