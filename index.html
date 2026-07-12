@@ -376,7 +376,10 @@ function updateCell(td,field,value){
   if(field==='location')td.innerHTML=makeLocBadge(value);
   else if(field==='imgStatus')td.innerHTML=makeImgBadge(value);
   else if(field==='store')td.innerHTML=(value==='A店拍摄'?'<span class="badge badge-a">A店拍摄</span>':value==='B店拍摄'?'<span class="badge badge-b">B店拍摄</span>':value==='C店拍摄'?'<span class="badge badge-c">C店拍摄</span>':value==='D店拍摄'?'<span class="badge badge-d">D店拍摄</span>':'<span class="badge badge-none">--</span>');
-  else if(field==='colorStatus')td.innerHTML=makeColorBadge(value);
+  else if(field==='colorStatus'){
+    if(currentShootType==='A店拍摄计划')td.textContent=value||'点击编辑';
+    else td.innerHTML=makeColorBadge(value);
+  }
   else if(field==='inPerson'||field==='outPerson')td.textContent=value||'--';
   else if(field==='date'||field==='outDate')td.textContent=formatDate(value)||'点击编辑';
   else td.textContent=value||'点击编辑';
