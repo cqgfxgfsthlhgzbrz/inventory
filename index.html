@@ -199,11 +199,11 @@ tr.add-row:hover td{background:#fafbff}
   <!-- 拍摄类型切换 -->
   <div class="type-tabs" id="typeTabs">
     <button class="type-tab active" data-type="" onclick="setShootType('')">📋 全部</button>
-    <button class="type-tab" data-type="A店拍摄样" onclick="setShootType('A店拍摄样')">A A店拍摄样</button>
-    <button class="type-tab" data-type="B店拍摄样" onclick="setShootType('B店拍摄样')">B B店拍摄样</button>
-    <button class="type-tab" data-type="C店拍摄样" onclick="setShootType('C店拍摄样')">C C店拍摄样</button>
-    <button class="type-tab" data-type="D店拍摄样" onclick="setShootType('D店拍摄样')">D D店拍摄样</button>
-    <button class="type-tab" data-type="视觉库" onclick="setShootType('视觉库')">EYE 视觉库</button>
+    <button class="type-tab" data-type="A店拍摄" onclick="setShootType('A店拍摄')">A店拍摄</button>
+    <button class="type-tab" data-type="B店拍摄" onclick="setShootType('B店拍摄')">B店拍摄</button>
+    <button class="type-tab" data-type="C店拍摄" onclick="setShootType('C店拍摄')">C店拍摄</button>
+    <button class="type-tab" data-type="D店拍摄" onclick="setShootType('D店拍摄')">D店拍摄</button>
+    <button class="type-tab" data-type="视觉库" onclick="setShootType('视觉库')">视觉库</button>
   </div>
 
   <div class="stats-row" id="statsRow"></div>
@@ -270,7 +270,7 @@ tr.add-row:hover td{background:#fafbff}
         <div class="form-group"><label>📍 目前位置</label><select id="location"><option value="">--</option><option value="影棚">影棚</option><option value="办公室">办公室</option><option value="仓库">仓库</option></select></div>
         <div class="form-group"><label>📸 图片交付</label><select id="imgStatus"><option value="">--</option><option value="已交付">✅ 已交付</option><option value="未交付">⏳ 未交付</option></select></div>
       </div>
-      <div class="form-group"><label>📷 拍摄类型</label><select id="shootType"><option value="">--</option><option value="A店拍摄样">A店拍摄样</option><option value="B店拍摄样">B店拍摄样</option><option value="C店拍摄样">C店拍摄样</option><option value="D店拍摄样">D店拍摄样</option><option value="视觉库">视觉库</option></select></div>
+      <div class="form-group"><label>📷 拍摄类型</label><select id="shootType"><option value="">--</option><option value="A店拍摄">A店拍摄</option><option value="B店拍摄">B店拍摄</option><option value="C店拍摄">C店拍摄</option><option value="D店拍摄">D店拍摄</option><option value="视觉库">视觉库</option></select></div>
       <div class="form-row">
         <div class="form-group"><label>📝 备注</label><textarea id="remark" placeholder="备注信息..."></textarea></div>
         <div class="form-group"><label>🖼 图片位置</label><input type="text" id="imageUrl" placeholder="图片路径或链接"></div>
@@ -328,7 +328,7 @@ function makeImgBadge(v){
 }
 function makeTypeBadge(v){
   if(!v)return'<span class="badge badge-none">--</span>';
-  return'<span class="badge '+(v==='A店拍摄样'||v==='B店拍摄样'?'badge-draft':v==='C店拍摄样'||v==='D店拍摄样'?'badge-set':v==='视觉库'?'badge-blue':'badge-none')+'">'+v+'</span>';
+  return'<span class="badge '+(v==='A店拍摄'||v==='B店拍摄'?'badge-draft':v==='C店拍摄'||v==='D店拍摄'?'badge-set':v==='视觉库'?'badge-blue':'badge-none')+'">'+v+'</span>';
 }
 function makeColorBadge(v){
   if(!v)return'<span class="badge badge-none">--</span>';
@@ -386,10 +386,10 @@ const imgOptions=[
 ];
 const typeOptions=[
   {value:'',label:'--',icon:''},
-  {value:'A店拍摄样',label:'A店拍摄样',icon:''},
-  {value:'B店拍摄样',label:'B店拍摄样',icon:''},
-  {value:'C店拍摄样',label:'C店拍摄样',icon:''},
-  {value:'D店拍摄样',label:'D店拍摄样',icon:''},
+  {value:'A店拍摄',label:'A店拍摄',icon:''},
+  {value:'B店拍摄',label:'B店拍摄',icon:''},
+  {value:'C店拍摄',label:'C店拍摄',icon:''},
+  {value:'D店拍摄',label:'D店拍摄',icon:''},
   {value:'视觉库',label:'视觉库',icon:''}
 ];
 const inPersonOptions=[
