@@ -220,7 +220,7 @@ tr.add-row:hover td{background:#fafbff}
       <span class="count" id="recordCount">共 0 条</span>
     </div>
     <div class="table-scroll">
-      <table>
+      <table id="dataTable">
         <thead><tr>
           <th style="width:36px">#</th>
           <th class="sortable" onclick="sortTable('date')" style="width:110px">入库日期 ⇅</th>
@@ -392,6 +392,11 @@ const typeOptions=[
   {value:'D店拍摄计划',label:'D店拍摄计划',icon:''},
   {value:'视觉库',label:'视觉库',icon:''}
 ];
+const finalizedOptions=[
+  {value:'',label:'--',icon:''},
+  {value:'是',label:'是',icon:'✅'},
+  {value:'否',label:'否',icon:'❌'}
+];
 const inPersonOptions=[
   {value:'',label:'--',icon:''},
   {value:'吴文校',label:'吴文校',icon:''},
@@ -420,7 +425,7 @@ function closeAllDropdowns(){
 
 function openDropdown(td,field,id,currentValue){
   closeAllDropdowns();
-  let options=field==='location'?locOptions:field==='imgStatus'?imgOptions:field==='shootType'?typeOptions:field==='inPerson'?inPersonOptions:field==='outPerson'?outPersonOptions:colorOptions;
+  let options=field==='location'?locOptions:field==='imgStatus'?imgOptions:field==='shootType'?typeOptions:field==='isFinalized'?finalizedOptions:field==='inPerson'?inPersonOptions:field==='outPerson'?outPersonOptions:colorOptions;
 
   let backdrop=document.createElement('div');
   backdrop.className='dropdown-backdrop';
@@ -535,7 +540,7 @@ document.addEventListener('mousedown',function(e){
 
 // ══ Add blank row ══
 async function addBlankRow(){
-  let record={date:new Date().toISOString().split('T')[0].replace(/-/g,'.'),style:'',qty:'',colorStatus:'',inPerson:'',outDate:'',outPerson:'',location:'',imgStatus:'',shootType:'',remark:'',imageUrl:'',extra:''};
+  let record={date:new Date().toISOString().split('T')[0].replace(/-/g,'.'),style:'',qty:'',colorStatus:'',inPerson:'',outDate:'',outPerson:'',location:'',imgStatus:'',shootType:'',remark:'',imageUrl:'',extra:'',productImage:'',referenceImage:'',shootStyle:'',shootSize:'',isFinalized:'',estimatedShipDate:''};
   try{
     let r=await api('POST','/api/records',{sheet:SHEET,record});
     data.main.push(r.record);serverVersion=r.version;renderAll();
@@ -611,32 +616,85 @@ function _renderFilteredTable(rows){
   let ttl='📊 记录列表';
   if(currentShootType)ttl='📊 '+currentShootType;
   document.getElementById('tableTitle').innerHTML=ttl;
+
+  // Update table header based on shoot type
+  let theadRow=document.querySelector('#dataTable thead tr');
+  let isA=currentShootType==='A店拍摄计划';
+  theadRow.innerHTML=isA?
+    '<th style="width:36px">#</th>'+
+    '<th style="width:100px">款号</th>'+
+    '<th style="width:60px">产品图</th>'+
+    '<th style="width:60px">参考图</th>'+
+    '<th style="width:80px">风格</th>'+
+    '<th style="width:90px">拍摄尺码</th>'+
+    '<th class="sortable" onclick="sortTable(\'outDate\')" style="width:110px">样衣交付时间 ⇅</th>'+
+    '<th style="width:100px">预计发货时间</th>'+
+    '<th style="width:75px">是否定稿</th>'+
+    '<th style="width:75px">颜色共计</th>'+
+    '<th style="width:50px">操作</th>'
+  :
+    '<th style="width:36px">#</th>'+
+    '<th class="sortable" onclick="sortTable(\'date\')" style="width:110px">入库日期 ⇅</th>'+
+    '<th style="width:125px">款式</th>'+
+    '<th style="min-width:140px">数量</th>'+
+    '<th style="width:75px">是否齐色</th>'+
+    '<th style="width:85px">入库交付人</th>'+
+    '<th class="sortable" onclick="sortTable(\'outDate\')" style="width:110px">出库日期 ⇅</th>'+
+    '<th style="width:80px">出库交付人</th>'+
+    '<th style="width:80px">目前位置</th>'+
+    '<th style="width:75px">图片交付</th>'+
+    '<th style="width:85px">拍摄类型</th>'+
+    '<th style="min-width:80px">备注</th>'+
+    '<th style="width:55px">图片</th>'+
+    '<th style="width:50px">操作</th>';
+
   if(!rows.length){tbody.innerHTML='';es.style.display='block';return}
   es.style.display='none';closeAllDropdowns();
-  // Use insertAdjacentHTML (faster than innerHTML) and avoid URL duplication in onclick
+
   tbody.textContent='';
-  tbody.insertAdjacentHTML('beforeend',rows.map((r,i)=>{
-    let dd=formatDate(r.date),od=formatDate(r.outDate);
-    let imgCell=r.imageUrl
-      ?'<div class="img-thumb"><img src="'+r.imageUrl+'" onclick="viewImage(event)" title="点击放大查看"><span class="img-replace" onclick="uploadImage(event,'+r.id+')" title="更换图片">＋</span></div>'
-      :'<span class="img-add-btn" onclick="uploadImage(event,'+r.id+')">＋ 添加图片</span>';
-    return'<tr data-id="'+r.id+'">'+
-      '<td class="row-num">'+(i+1)+'</td>'+
-      '<td class="date-cell editable" data-field="date" data-id="'+r.id+'">'+(dd||'点击编辑')+'</td>'+
-      '<td class="style-cell editable" data-field="style" data-id="'+r.id+'">'+(r.style||'点击编辑')+'</td>'+
-      '<td class="qty-cell editable" data-field="qty" data-id="'+r.id+'">'+(r.qty||'点击编辑')+'</td>'+
-      '<td class="editable dropdown-cell" data-field="colorStatus" data-id="'+r.id+'">'+makeColorBadge(r.colorStatus)+'</td>'+
-      '<td class="editable dropdown-cell" data-field="inPerson" data-id="'+r.id+'">'+(r.inPerson||'<span class="badge badge-none">--</span>')+'</td>'+
-      '<td class="date-cell editable" data-field="outDate" data-id="'+r.id+'">'+(od||'点击编辑')+'</td>'+
-      '<td class="editable dropdown-cell" data-field="outPerson" data-id="'+r.id+'">'+(r.outPerson||'<span class="badge badge-none">--</span>')+'</td>'+
-      '<td class="editable dropdown-cell" data-field="location" data-id="'+r.id+'">'+makeLocBadge(r.location)+'</td>'+
-      '<td class="editable dropdown-cell" data-field="imgStatus" data-id="'+r.id+'">'+makeImgBadge(r.imgStatus)+'</td>'+
-      '<td class="editable dropdown-cell" data-field="shootType" data-id="'+r.id+'">'+makeTypeBadge(r.shootType)+'</td>'+
-      '<td class="editable remark-cell" data-field="remark" data-id="'+r.id+'" title="'+(r.remark||'')+'">'+(r.remark||'点击编辑')+'</td>'+
-      '<td class="img-upload-cell" data-field="imageUrl" data-id="'+r.id+'">'+imgCell+'</td>'+
-      '<td><button class="btn btn-danger btn-xs" onclick="deleteById('+r.id+')">🗑</button></td></tr>';
-  }).join('')+
-  '<tr class="add-row" id="addRow"><td style="text-align:center;padding:5px"><button onclick="addBlankRow()" class="add-row-btn">＋</button></td><td colspan="13" class="add-row-hint">添加新行</td></tr>');
+  if(isA){
+    // A店拍摄计划 layout: 款号 产品图 参考图 风格 拍摄尺码 样衣交付时间 预计发货时间 是否定稿 颜色共计
+    tbody.insertAdjacentHTML('beforeend',rows.map((r,i)=>{
+      let od=formatDate(r.outDate),ed=formatDate(r.estimatedShipDate);
+      let prodImg=r.productImage?'<div class="img-thumb"><img src="'+r.productImage+'" onclick="viewImage(event)" title="点击放大查看"><span class="img-replace" onclick="uploadImage(event,'+r.id+',\'productImage\')" title="更换图片">＋</span></div>':'<span class="img-add-btn" onclick="uploadImage(event,'+r.id+',\'productImage\')">＋</span>';
+      let refImg=r.referenceImage?'<div class="img-thumb"><img src="'+r.referenceImage+'" onclick="viewImage(event)" title="点击放大查看"><span class="img-replace" onclick="uploadImage(event,'+r.id+',\'referenceImage\')" title="更换图片">＋</span></div>':'<span class="img-add-btn" onclick="uploadImage(event,'+r.id+',\'referenceImage\')">＋</span>';
+      return'<tr data-id="'+r.id+'">'+
+        '<td class="row-num">'+(i+1)+'</td>'+
+        '<td class="style-cell editable" data-field="style" data-id="'+r.id+'">'+(r.style||'点击编辑')+'</td>'+
+        '<td class="img-upload-cell" data-field="productImage" data-id="'+r.id+'">'+prodImg+'</td>'+
+        '<td class="img-upload-cell" data-field="referenceImage" data-id="'+r.id+'">'+refImg+'</td>'+
+        '<td class="editable" data-field="shootStyle" data-id="'+r.id+'">'+(r.shootStyle||'点击编辑')+'</td>'+
+        '<td class="editable" data-field="shootSize" data-id="'+r.id+'">'+(r.shootSize||'点击编辑')+'</td>'+
+        '<td class="date-cell editable" data-field="outDate" data-id="'+r.id+'">'+(od||'点击编辑')+'</td>'+
+        '<td class="date-cell editable" data-field="estimatedShipDate" data-id="'+r.id+'">'+(ed||'点击编辑')+'</td>'+
+        '<td class="editable dropdown-cell" data-field="isFinalized" data-id="'+r.id+'">'+(r.isFinalized==='是'?'<span class="badge badge-green">是</span>':r.isFinalized==='否'?'<span class="badge badge-red">否</span>':'<span class="badge badge-none">--</span>')+'</td>'+
+        '<td class="editable" data-field="colorStatus" data-id="'+r.id+'">'+(r.colorStatus||'点击编辑')+'</td>'+
+        '<td><button class="btn btn-danger btn-xs" onclick="deleteById('+r.id+')">🗑</button></td></tr>';
+    }).join('')+
+    '<tr class="add-row"><td style="text-align:center;padding:5px"><button onclick="addBlankRow()" class="add-row-btn">＋</button></td><td colspan="10" class="add-row-hint">添加新行</td></tr>');
+  }else{
+    // Default layout
+    tbody.insertAdjacentHTML('beforeend',rows.map((r,i)=>{
+      let dd=formatDate(r.date),od=formatDate(r.outDate);
+      let imgCell=r.imageUrl?'<div class="img-thumb"><img src="'+r.imageUrl+'" onclick="viewImage(event)" title="点击放大查看"><span class="img-replace" onclick="uploadImage(event,'+r.id+',\'imageUrl\')" title="更换图片">＋</span></div>':'<span class="img-add-btn" onclick="uploadImage(event,'+r.id+',\'imageUrl\')">＋ 添加图片</span>';
+      return'<tr data-id="'+r.id+'">'+
+        '<td class="row-num">'+(i+1)+'</td>'+
+        '<td class="date-cell editable" data-field="date" data-id="'+r.id+'">'+(dd||'点击编辑')+'</td>'+
+        '<td class="style-cell editable" data-field="style" data-id="'+r.id+'">'+(r.style||'点击编辑')+'</td>'+
+        '<td class="qty-cell editable" data-field="qty" data-id="'+r.id+'">'+(r.qty||'点击编辑')+'</td>'+
+        '<td class="editable dropdown-cell" data-field="colorStatus" data-id="'+r.id+'">'+makeColorBadge(r.colorStatus)+'</td>'+
+        '<td class="editable dropdown-cell" data-field="inPerson" data-id="'+r.id+'">'+(r.inPerson||'<span class="badge badge-none">--</span>')+'</td>'+
+        '<td class="date-cell editable" data-field="outDate" data-id="'+r.id+'">'+(od||'点击编辑')+'</td>'+
+        '<td class="editable dropdown-cell" data-field="outPerson" data-id="'+r.id+'">'+(r.outPerson||'<span class="badge badge-none">--</span>')+'</td>'+
+        '<td class="editable dropdown-cell" data-field="location" data-id="'+r.id+'">'+makeLocBadge(r.location)+'</td>'+
+        '<td class="editable dropdown-cell" data-field="imgStatus" data-id="'+r.id+'">'+makeImgBadge(r.imgStatus)+'</td>'+
+        '<td class="editable dropdown-cell" data-field="shootType" data-id="'+r.id+'">'+makeTypeBadge(r.shootType)+'</td>'+
+        '<td class="editable remark-cell" data-field="remark" data-id="'+r.id+'" title="'+(r.remark||'')+'">'+(r.remark||'点击编辑')+'</td>'+
+        '<td class="img-upload-cell" data-field="imageUrl" data-id="'+r.id+'">'+imgCell+'</td>'+
+        '<td><button class="btn btn-danger btn-xs" onclick="deleteById('+r.id+')">🗑</button></td></tr>';
+    }).join('')+
+    '<tr class="add-row"><td style="text-align:center;padding:5px"><button onclick="addBlankRow()" class="add-row-btn">＋</button></td><td colspan="13" class="add-row-hint">添加新行</td></tr>');
+  }
 }
 
 // ══ Modal ══
@@ -665,7 +723,8 @@ async function deleteById(id){
 function closeModal(e){if(e&&e.target!==document.getElementById('modalOverlay'))return;document.getElementById('modalOverlay').style.display='none'}
 
 // ══ Image upload with auto-compression ══
-function uploadImage(e,id){
+function uploadImage(e,id,field){
+  field=field||'imageUrl';
   e.stopPropagation();e.preventDefault();
   let input=document.createElement('input');
   input.type='file';input.accept='image/*';input.style.display='none';
@@ -684,13 +743,13 @@ function uploadImage(e,id){
         let compressed=c.toDataURL('image/jpeg',0.7);
         let rec=getCurrentData().find(r=>r.id===id);
         if(rec){
-          let previousUrl=rec.imageUrl||'';
-          rec.imageUrl=compressed;
+          let previousUrl=rec[field]||'';
+          rec[field]=compressed;
           // Update cell immediately
-          let cell=document.querySelector('td.img-upload-cell[data-id="'+id+'"]');
-          if(cell)cell.innerHTML='<div class="img-thumb"><img src="'+compressed+'" onclick="viewImage(event)" title="点击放大查看"><span class="img-replace" onclick="uploadImage(event,'+id+')" title="更换图片">\uff0b</span></div>';
+          let cell=document.querySelector('td.img-upload-cell[data-field="'+field+'"][data-id="'+id+'"]');
+          if(cell)cell.innerHTML='<div class="img-thumb"><img src="'+compressed+'" onclick="viewImage(event)" title="点击放大查看"><span class="img-replace" onclick="uploadImage(event,'+id+',\''+field+'\')" title="更换图片">\uff0b</span></div>';
           showToast('图片已保存 ✅','success');
-          try{await api('PUT','/api/records/'+SHEET+'/'+id+'/field',{field:'imageUrl',value:compressed})}catch(e){rec.imageUrl=previousUrl;if(cell&&!rec.imageUrl)cell.innerHTML='<span class="img-add-btn" onclick="uploadImage(event,'+id+')">\uff0b 添加图片</span>';showToast('图片保存失败','error');}
+          try{await api('PUT','/api/records/'+SHEET+'/'+id+'/field',{field:field,value:compressed})}catch(e){rec[field]=previousUrl;if(cell&&!rec[field])cell.innerHTML='<span class="img-add-btn" onclick="uploadImage(event,'+id+',\''+field+'\')">\uff0b 添加图片</span>';showToast('图片保存失败','error');}
         }
         input.remove();
       };
