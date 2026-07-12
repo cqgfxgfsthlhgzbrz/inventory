@@ -392,6 +392,12 @@ const typeOptions=[
   {value:'D店拍摄计划',label:'D店拍摄计划',icon:''},
   {value:'视觉库',label:'视觉库',icon:''}
 ];
+const shootStyleOptions=[
+  {value:'',label:'--',icon:''},
+  {value:'3d',label:'3d',icon:''},
+  {value:'平铺',label:'平铺',icon:''},
+  {value:'挂拍',label:'挂拍',icon:''}
+];
 const finalizedOptions=[
   {value:'',label:'--',icon:''},
   {value:'是',label:'是',icon:'✅'},
@@ -425,7 +431,7 @@ function closeAllDropdowns(){
 
 function openDropdown(td,field,id,currentValue){
   closeAllDropdowns();
-  let options=field==='location'?locOptions:field==='imgStatus'?imgOptions:field==='shootType'?typeOptions:field==='isFinalized'?finalizedOptions:field==='inPerson'?inPersonOptions:field==='outPerson'?outPersonOptions:colorOptions;
+  let options=field==='location'?locOptions:field==='imgStatus'?imgOptions:field==='shootType'?typeOptions:field==='shootStyle'?shootStyleOptions:field==='isFinalized'?finalizedOptions:field==='inPerson'?inPersonOptions:field==='outPerson'?outPersonOptions:colorOptions;
 
   let backdrop=document.createElement('div');
   backdrop.className='dropdown-backdrop';
@@ -663,7 +669,7 @@ function _renderFilteredTable(rows){
         '<td class="style-cell editable" data-field="style" data-id="'+r.id+'">'+(r.style||'点击编辑')+'</td>'+
         '<td class="img-upload-cell" data-field="productImage" data-id="'+r.id+'">'+prodImg+'</td>'+
         '<td class="img-upload-cell" data-field="referenceImage" data-id="'+r.id+'">'+refImg+'</td>'+
-        '<td class="editable" data-field="shootStyle" data-id="'+r.id+'">'+(r.shootStyle||'点击编辑')+'</td>'+
+        '<td class="editable dropdown-cell" data-field="shootStyle" data-id="'+r.id+'">'+(r.shootStyle?'<span class="badge badge-blue">'+r.shootStyle+'</span>':'<span class="badge badge-none">--</span>')+'</td>'+
         '<td class="editable" data-field="shootSize" data-id="'+r.id+'">'+(r.shootSize||'点击编辑')+'</td>'+
         '<td class="date-cell editable" data-field="outDate" data-id="'+r.id+'">'+(od||'点击编辑')+'</td>'+
         '<td class="date-cell editable" data-field="estimatedShipDate" data-id="'+r.id+'">'+(ed||'点击编辑')+'</td>'+
