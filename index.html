@@ -375,7 +375,7 @@ function updateCell(td,field,value){
   if(!record)return;
   if(field==='location')td.innerHTML=makeLocBadge(value);
   else if(field==='imgStatus')td.innerHTML=makeImgBadge(value);
-  else if(field==='shootType')td.innerHTML=makeTypeBadge(value);
+  else if(field==='store')td.innerHTML=(value==='A店拍摄'?'<span class="badge badge-a">A店拍摄</span>':value==='B店拍摄'?'<span class="badge badge-b">B店拍摄</span>':value==='C店拍摄'?'<span class="badge badge-c">C店拍摄</span>':value==='D店拍摄'?'<span class="badge badge-d">D店拍摄</span>':'<span class="badge badge-none">--</span>');
   else if(field==='colorStatus')td.innerHTML=makeColorBadge(value);
   else if(field==='inPerson'||field==='outPerson')td.textContent=value||'--';
   else if(field==='date'||field==='outDate')td.textContent=formatDate(value)||'点击编辑';
@@ -401,6 +401,13 @@ const typeOptions=[
   {value:'C店拍摄计划',label:'C店拍摄',icon:''},
   {value:'D店拍摄计划',label:'D店拍摄',icon:''},
   {value:'视觉库',label:'视觉库',icon:''}
+];
+const storeOptions=[
+  {value:'',label:'--',icon:''},
+  {value:'A店拍摄',label:'A店拍摄',icon:''},
+  {value:'B店拍摄',label:'B店拍摄',icon:''},
+  {value:'C店拍摄',label:'C店拍摄',icon:''},
+  {value:'D店拍摄',label:'D店拍摄',icon:''}
 ];
 const shootStyleOptions=[
   {value:'',label:'--',icon:''},
@@ -441,7 +448,7 @@ function closeAllDropdowns(){
 
 function openDropdown(td,field,id,currentValue){
   closeAllDropdowns();
-  let options=field==='location'?locOptions:field==='imgStatus'?imgOptions:field==='shootType'?typeOptions:field==='shootStyle'?shootStyleOptions:field==='isFinalized'?finalizedOptions:field==='inPerson'?inPersonOptions:field==='outPerson'?outPersonOptions:colorOptions;
+  let options=field==='location'?locOptions:field==='imgStatus'?imgOptions:field==='store'?storeOptions:field==='shootStyle'?shootStyleOptions:field==='isFinalized'?finalizedOptions:field==='inPerson'?inPersonOptions:field==='outPerson'?outPersonOptions:colorOptions;
 
   let backdrop=document.createElement('div');
   backdrop.className='dropdown-backdrop';
@@ -706,7 +713,7 @@ function _renderFilteredTable(rows){
         '<td class="editable dropdown-cell" data-field="outPerson" data-id="'+r.id+'">'+(r.outPerson||'<span class="badge badge-none">--</span>')+'</td>'+
         '<td class="editable dropdown-cell" data-field="location" data-id="'+r.id+'">'+makeLocBadge(r.location)+'</td>'+
         '<td class="editable dropdown-cell" data-field="imgStatus" data-id="'+r.id+'">'+makeImgBadge(r.imgStatus)+'</td>'+
-        '<td class="editable dropdown-cell" data-field="shootType" data-id="'+r.id+'">'+makeTypeBadge(r.shootType)+'</td>'+
+        '<td class="editable dropdown-cell" data-field="store" data-id="'+r.id+'">'+(r.store==='A店拍摄'?'<span class="badge badge-a">A店拍摄</span>':r.store==='B店拍摄'?'<span class="badge badge-b">B店拍摄</span>':r.store==='C店拍摄'?'<span class="badge badge-c">C店拍摄</span>':r.store==='D店拍摄'?'<span class="badge badge-d">D店拍摄</span>':'<span class="badge badge-none">--</span>')+'</td>'+
         '<td class="editable remark-cell" data-field="remark" data-id="'+r.id+'" title="'+(r.remark||'')+'">'+(r.remark||'点击编辑')+'</td>'+
         '<td class="img-upload-cell" data-field="imageUrl" data-id="'+r.id+'">'+imgCell+'</td>'+
         '<td><button class="btn btn-danger btn-xs" onclick="deleteById('+r.id+')">🗑</button></td></tr>';
