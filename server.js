@@ -85,12 +85,15 @@ async function handleApi(req, res, url, parts, rawBody) {
     try {
       if (req.method === 'GET' && url === '/api/version') {
         const d = await loadFromCOS();
+        cache = d; // update cache
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ version: d.version }));
+        res.end(JSON.stringify({ version: d.version, records: d.main.length }));
         return;
       }
       if (req.method === 'GET' && url === '/api/data') {
+        cache = null; // force fresh load every time
         const d = await loadFromCOS();
+        cache = d;
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(d));
         return;
