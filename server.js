@@ -27,7 +27,7 @@ async function loadFromGitHub(retries=2) {
       data._sha = r.sha; cache = data; return data;
     } catch(e) {
       if(i===retries-1){console.error('Load error (exhausted):', e.message);if(cache)return JSON.parse(JSON.stringify(cache));return JSON.parse(JSON.stringify(defaultData));}
-      await new Promise(r=>setTimeout(r,1000));
+      await new Promise(r=>setTimeout(r,500*Math.pow(2,i)));
     }
   }
 }
@@ -54,7 +54,7 @@ async function saveToGitHub(data,retries=3) {
           if(r2.ok){const j2=await r2.json();data._sha=j2.sha;cache=JSON.parse(Buffer.from(j2.content,'base64').toString('utf-8'));cache._sha=j2.sha}
         }catch(e2){}
       }
-      await new Promise(r=>setTimeout(r,800));
+      await new Promise(r=>setTimeout(r,500*Math.pow(2,i)));
     }
   }
 }
