@@ -86,6 +86,19 @@ async function handleApi(req, res, url, parts, rawBody) {
 
   if (url.startsWith('/api/')) {
     try {
+      if (req.method === 'GET' && url === '/api/debug') {
+        try {
+          if (!SECRET_ID) { res.writeHead(200); res.end('NO SECRET_ID'); return; }
+          const test = await cos.getObject({ Bucket: BUCKET, Region: REGION, Key: KEY, Timeout: 10000 });
+          const d = JSON.parse(test.Body.toString('utf-8'));
+          res.writeHead(200);
+          res.end('COS OK: ' + d.main.length + ' records, v' + d.version);
+        } catch(e) {
+          res.writeHead(200);
+          res.end('COS ERR: ' + e.message);
+        }
+        return;
+      }
       if (req.method === 'GET' && url === '/api/version') {
         const d = await loadFromCOS();
         cache = d; // update cache
