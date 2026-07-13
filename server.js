@@ -13,42 +13,49 @@ const defaultData = {
 };
 let cache = null;
 
-async function loadFromGitHub() {
+async function loadFromGitHub(retries=2) {
   if (!GITHUB_TOKEN) return JSON.parse(JSON.stringify(cache || defaultData));
-  try {
-    const res = await fetch('https://api.github.com/repos/cqgfxgfsthlhgzbrz/inventory/contents/data.json', {
-      headers: { 'Authorization': 'Bearer ' + GITHUB_TOKEN, 'Accept': 'application/vnd.github+json', 'User-Agent': 'Vercel', 'X-GitHub-Api-Version': '2022-11-28' }
-    });
-    if (!res.ok) throw new Error('GitHub read error: ' + res.status);
-    const r = await res.json();
-    const data = JSON.parse(Buffer.from(r.content, 'base64').toString('utf-8'));
-    data._sha = r.sha;
-    cache = data;
-    return data;
-  } catch(e) {
-    console.error('Load error:', e.message);
-    if (cache) return JSON.parse(JSON.stringify(cache));
-    return JSON.parse(JSON.stringify(defaultData));
+  for(let i=0;i<retries;i++){
+    try {
+      const res = await fetch('https://api.github.com/repos/cqgfxgfsthlhgzbrz/inventory/contents/data.json', {
+        headers: { 'Authorization': 'Bearer ' + GITHUB_TOKEN, 'Accept': 'application/vnd.github+json', 'User-Agent': 'Vercel', 'X-GitHub-Api-Version': '2022-11-28' },
+        signal: AbortSignal.timeout(15000)
+      });
+      if (!res.ok) throw new Error('GitHub read error: ' + res.status);
+      const r = await res.json();
+      const data = JSON.parse(Buffer.from(r.content, 'base64').toString('utf-8'));
+      data._sha = r.sha; cache = data; return data;
+    } catch(e) {
+      if(i===retries-1){console.error('Load error (exhausted):', e.message);if(cache)return JSON.parse(JSON.stringify(cache));return JSON.parse(JSON.stringify(defaultData));}
+      await new Promise(r=>setTimeout(r,1000));
+    }
   }
 }
 
-async function saveToGitHub(data) {
+async function saveToGitHub(data,retries=3) {
   if (!GITHUB_TOKEN) return false;
-  try {
-    const json = JSON.stringify(data);
-    const res = await fetch('https://api.github.com/repos/cqgfxgfsthlhgzbrz/inventory/contents/data.json', {
-      method: 'PUT',
-      headers: { 'Authorization': 'Bearer ' + GITHUB_TOKEN, 'Accept': 'application/vnd.github+json', 'User-Agent': 'Vercel', 'X-GitHub-Api-Version': '2022-11-28', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: 'Auto save', content: Buffer.from(json).toString('base64'), sha: data._sha })
-    });
-    if (!res.ok) throw new Error('GitHub write error: ' + res.status);
-    const r = await res.json();
-    data._sha = r.content.sha;
-    cache = data;
-    return true;
-  } catch(e) {
-    console.error('Save error:', e.message);
-    return false;
+  for(let i=0;i<retries;i++){
+    try {
+      const json = JSON.stringify(data);
+      const res = await fetch('https://api.github.com/repos/cqgfxgfsthlhgzbrz/inventory/contents/data.json', {
+        method: 'PUT',
+        headers: { 'Authorization': 'Bearer ' + GITHUB_TOKEN, 'Accept': 'application/vnd.github+json', 'User-Agent': 'Vercel', 'X-GitHub-Api-Version': '2022-11-28', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: 'Auto save', content: Buffer.from(json).toString('base64'), sha: data._sha }),
+        signal: AbortSignal.timeout(15000)
+      });
+      if (!res.ok) throw new Error('GitHub write error: ' + res.status);
+      const r = await res.json(); data._sha = r.content.sha; cache = data; return true;
+    } catch(e) {
+      if(i===retries-1){console.error('Save error (exhausted):', e.message);return false;}
+      // Re-load SHA on 409 conflict, then retry
+      if(e.message.includes('409')||e.message.includes('422')){
+        try{
+          const r2=await fetch('https://api.github.com/repos/cqgfxgfsthlhgzbrz/inventory/contents/data.json',{headers:{'Authorization':'Bearer '+GITHUB_TOKEN,'Accept':'application/vnd.github+json','User-Agent':'Vercel'},signal:AbortSignal.timeout(10000)});
+          if(r2.ok){const j2=await r2.json();data._sha=j2.sha;cache=JSON.parse(Buffer.from(j2.content,'base64').toString('utf-8'));cache._sha=j2.sha}
+        }catch(e2){}
+      }
+      await new Promise(r=>setTimeout(r,800));
+    }
   }
 }
 
