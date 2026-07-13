@@ -343,8 +343,18 @@ function setOnline(s){
     else if(t.textContent==='连接中...'){d.className='dot off';t.textContent='等待中'}
   }
 }
-async function api(method,path,body,retries=2){let lastErr;for(let i=0;i<=retries;i++){try{let opts={method,headers:{'Content-Type':'application/json'}};if(body)opts.body=JSON.stringify(body);let res=await fetch(API_BASE+path,opts);if(!res.ok)throw new Error('HTTP '+res.status);setOnline(true);return await res.json()}catch(e){lastErr=e;setOnline(false);if(i<retries)await new Promise(r=>setTimeout(r,500))}}throw lastErr}
-
+let _writeQueue=[];let _writeRunning=false;
+async function _runWriteQueue(){
+  if(_writeRunning)return;_writeRunning=true;
+  while(_writeQueue.length){let task=_writeQueue.shift();try{await task()}catch(e){}}
+  _writeRunning=false;
+}
+async function apiLow(method,path,body,retries){let lastErr;for(let i=0;i<=retries;i++){try{let opts={method,headers:{'Content-Type':'application/json'}};if(body)opts.body=JSON.stringify(body);let res=await fetch(API_BASE+path,opts);if(!res.ok)throw new Error('HTTP '+res.status);return await res.json()}catch(e){lastErr=e;if(i<retries){await new Promise(r=>setTimeout(r,500*Math.pow(2,i)))}}}throw lastErr}
+async function api(method,path,body,retries=4){
+  if(method==='GET')return apiLow(method,path,body,retries);
+  return new Promise((resolve,reject)=>{_writeQueue.push(async()=>{try{let r=await apiLow(method,path,body,retries);resolve(r)}catch(e){reject(e)}});_runWriteQueue()})
+}
+function setOnline(s){}
 async function loadFullData(){try{let r=await api('GET','/api/data');serverVersion=r.version;data.main=r.main||[];data.delivery=r.delivery||[];setOnline(true);renderAll()}catch(e){if(!data.main.length)showToast('⚠️ 无法连接服务器: '+e.message,'error')}}
 async function checkVersion(){try{let r=await api('GET','/api/version');if(r.version>serverVersion){await loadFullData();showSyncToast('🔄 数据已同步')}setOnline(true)}catch(e){setOnline(false)}}
 function loadAll(){loadFullData().then(()=>showToast('已刷新','success'))}
