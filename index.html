@@ -208,6 +208,15 @@ tr.add-row:hover td{background:#fafbff}
 .gallery-add-icon{font-size:32px;color:#9ca3af}
 .gallery-add-text{font-size:12px;color:#9ca3af}
 .gallery-add-card:hover .gallery-add-icon,.gallery-add-card:hover .gallery-add-text{color:#4f6ef7}
+/* delete confirm */
+.del-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.35);z-index:2000;display:none;align-items:center;justify-content:center}
+.del-box{background:#fff;border-radius:12px;padding:28px 32px;text-align:center;max-width:320px;box-shadow:0 8px 32px rgba(0,0,0,.15);animation:slideUp .2s}
+.del-icon{font-size:40px;margin-bottom:12px}
+.del-msg{font-size:15px;color:#374151;margin-bottom:20px}
+.del-cancel{background:#f3f4f6;color:#6b7280;border:none;padding:8px 24px;border-radius:8px;cursor:pointer;font-size:13px;margin-right:10px}
+.del-cancel:hover{background:#e5e7eb}
+.del-confirm{background:#ef4444;color:#fff;border:none;padding:8px 24px;border-radius:8px;cursor:pointer;font-size:13px}
+.del-confirm:hover{background:#dc2626}
 </style>
 </head>
 <body>
@@ -769,15 +778,17 @@ async function saveRecord(){
   if(!rec.date||!rec.style||!rec.qty||!rec.inPerson){showToast('请填写必填项','error');return}
   try{let r=await api('POST','/api/records',{sheet:SHEET,record:rec});closeModal();data.main.push(r.record);serverVersion=r.version;renderAll();showToast('新增成功 ✅','success')}catch(e){showToast('保存失败','error')}
 }
-async function deleteById(id){
+let _pendingDeleteId=null;
+function showDeleteConfirm(id){_pendingDeleteId=id;document.getElementById('deleteOverlay').style.display='flex'}
+function hideDeleteConfirm(){_pendingDeleteId=null;document.getElementById('deleteOverlay').style.display='none'}
+async function confirmDelete(){
+  let id=_pendingDeleteId;hideDeleteConfirm();if(!id)return;
   let rec=getCurrentData().find(r=>r.id===id);if(!rec)return;
-  if(!confirm('确定删除？\n款式: '+rec.style+'\n日期: '+formatDate(rec.date)))return;
-  // Optimistic: remove from UI immediately
   let backup=JSON.parse(JSON.stringify(rec));
-  data.main=data.main.filter(x=>x.id!==id);
-  renderAll();showToast('已删除 🗑','success');
+  data.main=data.main.filter(x=>x.id!==id);renderAll();showToast('已删除 🗑','success');
   try{let r=await api('DELETE','/api/records/'+SHEET+'/'+id);serverVersion=r.version}catch(e){data.main.push(backup);renderAll();showToast('删除失败，已恢复','error')}
 }
+async function deleteById(id){let rec=getCurrentData().find(r=>r.id===id);if(!rec)return;showDeleteConfirm(id)}
 function closeModal(e){if(e&&e.target!==document.getElementById('modalOverlay'))return;document.getElementById('modalOverlay').style.display='none'}
 
 // ══ Image upload with auto-compression ══
@@ -858,5 +869,14 @@ async function init(){
 init().catch(e=>console.error('INIT ERROR:',e));
 
 </script>
+<!-- delete confirm -->
+<div class="del-overlay" id="deleteOverlay" onclick="if(event.target===this)hideDeleteConfirm()">
+  <div class="del-box">
+    <div class="del-icon">⚠️</div>
+    <div class="del-msg">确认删除这条记录？</div>
+    <button class="del-cancel" onclick="hideDeleteConfirm()">取消</button>
+    <button class="del-confirm" onclick="confirmDelete()">删除</button>
+  </div>
+</div>
 </body>
 </html>
