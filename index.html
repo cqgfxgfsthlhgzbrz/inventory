@@ -208,6 +208,13 @@ tr.add-row:hover td{background:#fafbff}
 .gallery-add-icon{font-size:32px;color:#9ca3af}
 .gallery-add-text{font-size:12px;color:#9ca3af}
 .gallery-add-card:hover .gallery-add-icon,.gallery-add-card:hover .gallery-add-text{color:#4f6ef7}
+.gallery-noimg{height:160px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f9fafb;color:#c4c9d0;cursor:pointer;gap:6px;transition:all .15s}
+.gallery-noimg:hover{background:#eef1fe;color:#4f6ef7}
+.gallery-upload-icon{font-size:28px;font-weight:300}
+.gallery-replace{position:absolute;top:6px;right:6px;width:22px;height:22px;background:rgba(79,111,247,.9);color:#fff;border-radius:50%;font-size:11px;line-height:22px;text-align:center;cursor:pointer;opacity:0;transition:opacity .15s}
+.gallery-card{position:relative}
+.gallery-card:hover .gallery-replace{opacity:1}
+.gallery-card-label:hover{text-decoration:underline;color:#4f6ef7}
 /* delete confirm */
 .del-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.35);z-index:2000;display:none;align-items:center;justify-content:center}
 .del-box{background:#fff;border-radius:12px;padding:28px 32px;text-align:center;max-width:320px;box-shadow:0 8px 32px rgba(0,0,0,.15);animation:slideUp .2s}
@@ -712,12 +719,18 @@ function renderGallery(rows){
 
     if(sec.items.length){
       html+='<div class="gallery-grid">'+
-        sec.items.map(r=>
-          '<div class="gallery-card" onclick="viewImage(event)" title="'+(r.style||'')+'">'+
-            (r.imageUrl?'<img src="'+r.imageUrl+'">':'<div style="height:160px;display:flex;align-items:center;justify-content:center;background:#f9fafb;color:#c4c9d0;font-size:13px">暂无图片</div>')+
-            '<div class="gallery-card-body"><span class="gallery-card-label">'+(r.style||'未命名')+'</span><span class="gallery-card-action" onclick="event.stopPropagation();deleteById('+r.id+')">🗑</span></div>'+
-          '</div>'
-        ).join('')+
+        sec.items.map(r=>{
+          let imgPart=r.imageUrl
+            ?'<img src="'+r.imageUrl+'" onclick="event.stopPropagation();viewImg(\''+r.imageUrl+'\')" style="cursor:pointer">'+
+             '<span class="gallery-replace" onclick="event.stopPropagation();uploadGalleryImg('+r.id+')">♻</span>'
+            :'<div class="gallery-noimg" onclick="event.stopPropagation();uploadGalleryImg('+r.id+')"><span class="gallery-upload-icon">＋</span><span>添加图片</span></div>';
+          return '<div class="gallery-card" data-id="'+r.id+'">'+imgPart+
+            '<div class="gallery-card-body">'+
+              '<span class="gallery-card-label" onclick="event.stopPropagation();renameGallery('+r.id+',\''+escJS(r.style||'')+'\')" title="点击改名">'+(r.style||'未命名')+'</span>'+
+              '<span class="gallery-card-action" onclick="event.stopPropagation();deleteById('+r.id+')">🗑</span>'+
+            '</div>'+
+          '</div>';
+        }).join('')+
         '<div class="gallery-add-card" onclick="addToGallery(\''+sec.cat+'\',\''+sec.sty+'\')"><div class="gallery-add-icon">＋</div><div class="gallery-add-text">添加图片</div></div>'+
       '</div>';
     }else{
@@ -737,6 +750,10 @@ async function addToGallery(cat,sty){
   rec.id=Date.now();data.main.push(rec);renderAll();showToast('已添加 '+label+' ✅','success');
   try{let r=await api('POST','/api/records',{sheet:SHEET,record:rec});serverVersion=r.version}catch(e){data.main=data.main.filter(x=>x.id!==rec.id);renderAll();showToast('添加失败','error')}
 }
+function escJS(s){return String(s).replace(/'/g,"\\'").replace(/"/g,'&quot;').replace(/\n/g,' ')}
+function viewImg(url){let e=document.createElement('div');e.className='img-viewer';e.innerHTML='<span class="img-viewer-bg" onclick="this.parentNode.remove()"></span><img src="'+url+'"><button class="img-viewer-close" onclick="this.parentNode.parentNode?this.parentNode.parentNode.removeChild(this.parentNode):this.parentNode.remove()">✕</button><style>.img-viewer{position:fixed;z-index:9999;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center}.img-viewer-bg{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.85)}.img-viewer img{position:relative;max-width:90vw;max-height:90vh;border-radius:8px;z-index:1}.img-viewer-close{position:absolute;top:20px;right:24px;z-index:2;background:none;border:none;color:#fff;font-size:28px;cursor:pointer}</style>';document.body.appendChild(e)}
+function uploadGalleryImg(id){let input=document.createElement('input');input.type='file';input.accept='image/*';input.onchange=function(){let f=input.files[0];if(!f)return;let reader=new FileReader();reader.onload=function(ev){let img=new Image();img.onload=function(){let c=document.createElement('canvas'),maxW=600,scale=Math.min(1,maxW/img.width);c.width=img.width*scale;c.height=img.height*scale;c.getContext('2d').drawImage(img,0,0,c.width,c.height);let compressed=c.toDataURL('image/jpeg',0.7);let rec=getCurrentData().find(r=>r.id===id);if(rec){rec.imageUrl=compressed;renderAll();showToast('图片已上传 ✅','success');api('PUT','/api/records/'+SHEET+'/'+id+'/field',{field:'imageUrl',value:compressed}).catch(()=>showToast('同步失败','error'))}};img.src=ev.target.result};reader.onerror=function(){showToast('读取失败','error')};reader.readAsDataURL(f)};input.click()}
+async function renameGallery(id,oldName){let n=prompt('修改名称：',oldName);if(!n||n===oldName)return;let rec=getCurrentData().find(r=>r.id===id);if(!rec)return;let prev=rec.style;rec.style=n;renderAll();try{await api('PUT','/api/records/'+SHEET+'/'+id+'/field',{field:'style',value:n})}catch(e){rec.style=prev;renderAll();showToast('改名失败','error')}}
 
 function _renderFilteredTable(rows){
   if(currentShootType==='视觉库'){ renderGallery(rows); return; }
