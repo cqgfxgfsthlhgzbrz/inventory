@@ -87,12 +87,29 @@ async function handleApi(req, res, url, parts, rawBody) {
   if (url.startsWith('/api/')) {
     try {
       if (req.method === 'GET' && url === '/api/debug') {
-        const idShort = (SECRET_ID||'').slice(0,8);
-        const keyShort = (SECRET_KEY||'').slice(0,4);
-        const idLen = (SECRET_ID||'').length;
-        const keyLen = (SECRET_KEY||'').length;
-        res.writeHead(200, { 'Cache-Control': 'no-store' });
-        res.end('id='+idShort+'('+idLen+') key='+keyShort+'('+keyLen+') bucket='+BUCKET+' region='+REGION);
+        // Try direct HMAC-signed GET bypassing SDK
+        const now = Math.floor(Date.now()/1000);
+        const expired = now + 600;
+        const KeyTime = now + ';' + expired;
+        const URI = '/data.json';
+        const HttpString = 'get\n' + URI + '\n\nhost=' + BUCKET + '.cos.' + REGION + '.myqcloud.com\n';
+        const crypto = require('crypto');
+        const SignKey = crypto.createHmac('sha1', SECRET_KEY).update(KeyTime).digest('hex');
+        const HttpStringSha1 = crypto.createHash('sha1').update(HttpString).digest('hex');
+        const StringToSign = 'sha1\n' + KeyTime + '\n' + HttpStringSha1 + '\n';
+        const Signature = crypto.createHmac('sha1', SignKey).update(StringToSign).digest('hex');
+        const auth = 'q-sign-algorithm=sha1&q-ak='+SECRET_ID+'&q-sign-time='+KeyTime+'&q-key-time='+KeyTime+'&q-header-list=host&q-url-param-list=&q-signature='+Signature;
+        const https = require('https');
+        const opts = { hostname: BUCKET+'.cos.'+REGION+'.myqcloud.com', path: URI, method: 'GET', headers: { 'Authorization': auth, 'Host': BUCKET+'.cos.'+REGION+'.myqcloud.com' } };
+        const req2 = https.request(opts, (res) => {
+          let body = ''; res.on('data', c => body += c);
+          res.on('end', () => {
+            res.writeHead(200, { 'Cache-Control': 'no-store' });
+            res.end('HTTP ' + res.statusCode + ' body_len=' + body.length + ' first200=' + body.slice(0, 200));
+          });
+        });
+        req2.on('error', e => { res.writeHead(200); res.end('ERR ' + e.message); });
+        req2.end();
         return;
       }
       if (req.method === 'GET' && url === '/api/version') {
