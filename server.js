@@ -87,16 +87,12 @@ async function handleApi(req, res, url, parts, rawBody) {
   if (url.startsWith('/api/')) {
     try {
       if (req.method === 'GET' && url === '/api/debug') {
-        try {
-          if (!SECRET_ID) { res.writeHead(200); res.end('NO SECRET_ID'); return; }
-          const test = await cos.getObject({ Bucket: BUCKET, Region: REGION, Key: KEY, Timeout: 10000 });
-          const d = JSON.parse(test.Body.toString('utf-8'));
-          res.writeHead(200);
-          res.end('COS OK: ' + d.main.length + ' records, v' + d.version);
-        } catch(e) {
-          res.writeHead(200);
-          res.end('COS ERR: ' + e.message);
-        }
+        const idShort = (SECRET_ID||'').slice(0,8);
+        const keyShort = (SECRET_KEY||'').slice(0,4);
+        const idLen = (SECRET_ID||'').length;
+        const keyLen = (SECRET_KEY||'').length;
+        res.writeHead(200, { 'Cache-Control': 'no-store' });
+        res.end('id='+idShort+'('+idLen+') key='+keyShort+'('+keyLen+') bucket='+BUCKET+' region='+REGION);
         return;
       }
       if (req.method === 'GET' && url === '/api/version') {
