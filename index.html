@@ -487,7 +487,7 @@ function closeAllDropdowns(){
   document.querySelectorAll('.dropdown-backdrop').forEach(b=>b.remove());
 }
 
-function openDropdown(td,field,id,currentValue){
+async function openDropdown(td,field,id,currentValue){
   closeAllDropdowns();
   let options=field==='location'?locOptions:field==='imgStatus'?imgOptions:field==='store'?storeOptions:field==='shootStyle'?shootStyleOptions:field==='isFinalized'?finalizedOptions:field==='inPerson'?inPersonOptions:field==='outPerson'?outPersonOptions:colorOptions;
 
@@ -729,7 +729,7 @@ function renderGallery(rows){
   tbody.innerHTML=html;
 }
 
-function addToGallery(cat,sty){
+async function addToGallery(cat,sty){
   galleryActiveCat=cat;galleryActiveSub=sty;
   let label=prompt('图片编号/名称：',cat+(cat==='成人'?'CR':'TK')+'-'+Date.now().toString().slice(-4));
   if(!label)return;
@@ -854,7 +854,7 @@ async function deleteById(id){let rec=getCurrentData().find(r=>r.id===id);if(!re
 function closeModal(e){if(e&&e.target!==document.getElementById('modalOverlay'))return;document.getElementById('modalOverlay').style.display='none'}
 
 // ══ Image upload with auto-compression ══
-function uploadImage(e,id,field){
+async function uploadImage(e,id,field){
   field=field||'imageUrl';
   e.stopPropagation();e.preventDefault();
   let input=document.createElement('input');
