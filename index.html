@@ -319,7 +319,14 @@ const API_BASE='',POLL_INTERVAL=30000,SHEET='main';
 let serverVersion=0,data={main:[],delivery:[]},currentShootType='',sortField='',sortDir='asc',pollTimer=null;
 
 // ══ API ══
-function setOnline(s){}
+function setOnline(s){
+  // Only update on first connection, ignore after to avoid flicker
+  if(!window._initDone){
+    let d=document.querySelector('#onlineIndicator .dot'),t=document.getElementById('onlineText');
+    if(s){d.className='dot on';t.textContent='就绪';document.getElementById('onlineIndicator').style.background='#ecfdf5'}
+    else if(t.textContent==='连接中...'){d.className='dot off';t.textContent='等待中'}
+  }
+}
 async function api(method,path,body,retries=2){let lastErr;for(let i=0;i<=retries;i++){try{let opts={method,headers:{'Content-Type':'application/json'}};if(body)opts.body=JSON.stringify(body);let res=await fetch(API_BASE+path,opts);if(!res.ok)throw new Error('HTTP '+res.status);setOnline(true);return await res.json()}catch(e){lastErr=e;setOnline(false);if(i<retries)await new Promise(r=>setTimeout(r,500))}}throw lastErr}
 
 async function loadFullData(){try{let r=await api('GET','/api/data');serverVersion=r.version;data.main=r.main||[];data.delivery=r.delivery||[];setOnline(true);renderAll()}catch(e){if(!data.main.length)showToast('⚠️ 无法连接服务器: '+e.message,'error')}}
@@ -845,6 +852,7 @@ async function init(){
   }
   // Then sync with server to get latest data
   await loadFullData();
+  window._initDone=true;
   pollTimer=setInterval(checkVersion,POLL_INTERVAL);
 }
 init().catch(e=>console.error('INIT ERROR:',e));
