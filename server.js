@@ -25,7 +25,7 @@ function cosRequest(method, body) {
     const t0 = Math.floor(Date.now() / 1000);
     const t1 = t0 + 900;
     const kt = t0 + ';' + t1;
-    const sig = method + '\n/' + KEY + '\n\nhost=' + HOST + '\n';
+    const sig = method.toLowerCase() + '\n/' + KEY + '\n\nhost=' + HOST + '\n';
     const signKey = crypto.createHmac('sha1', SECRET_KEY).update(kt).digest('hex');
     const sigSha = crypto.createHash('sha1').update(sig).digest('hex');
     const ts = 'sha1\n' + kt + '\n' + sigSha + '\n';
