@@ -1,58 +1,76 @@
-// Vercel native serverless handler — storage backed by Tencent Cloud COS
+// Vercel native serverless handler — pure HTTP, no SDK deps
 const fs = require('fs');
 const path = require('path');
-const COS = require('cos-nodejs-sdk-v5');
+const crypto = require('crypto');
+const https = require('https');
 
 const SECRET_ID = process.env.COS_SECRET_ID || '';
 const SECRET_KEY = process.env.COS_SECRET_KEY || '';
 const BUCKET = process.env.COS_BUCKET || 'ypyyglxt-1300054444';
 const REGION = process.env.COS_REGION || 'ap-shanghai';
+const HOST = BUCKET + '.cos.' + REGION + '.myqcloud.com';
 const KEY = 'data.json';
-
-const cos = new COS({ SecretId: SECRET_ID, SecretKey: SECRET_KEY });
 
 const defaultData = {
   version: 1,
-  main: [
-    {id:1,date:'2026-06-23',style:'DC1015',qty:'11（齐色）',inPerson:'吴文校',outDate:'',outPerson:'',location:'仓库',imgStatus:'已交付',shootType:'',colorStatus:'齐色',remark:'收到',imageUrl:'',extra:'',store:'A店拍摄'},
-  ],
+  main: [],
   delivery: []
 };
 let cache = null;
 
-async function loadFromCOS(retries=3) {
-  if (!SECRET_ID || !SECRET_KEY) return JSON.parse(JSON.stringify(cache || defaultData));
-  for(let i=0;i<retries;i++){
-    try {
-      const r = await cos.getObject({ Bucket: BUCKET, Region: REGION, Key: KEY, Timeout: 15000 });
-      const data = JSON.parse(r.Body.toString('utf-8'));
-      cache = data; return data;
-    } catch(e) {
-      // 404 means file not yet created — use default
-      if(e.code === 'NoSuchKey' || /NoSuch/.test(e.message)){ cache = JSON.parse(JSON.stringify(defaultData)); return cache; }
-      if(i===retries-1){console.error('Load error:', e.message);if(cache)return JSON.parse(JSON.stringify(cache));return JSON.parse(JSON.stringify(defaultData));}
-      await new Promise(r=>setTimeout(r,500*Math.pow(2,i)));
-    }
-  }
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function cosRequest(method, body) {
+  return new Promise((resolve, reject) => {
+    const t0 = Math.floor(Date.now() / 1000);
+    const t1 = t0 + 900;
+    const kt = t0 + ';' + t1;
+    const sig = method + '\n/' + KEY + '\n\nhost=' + HOST + '\n';
+    const signKey = crypto.createHmac('sha1', SECRET_KEY).update(kt).digest('hex');
+    const sigSha = crypto.createHash('sha1').update(sig).digest('hex');
+    const ts = 'sha1\n' + kt + '\n' + sigSha + '\n';
+    const signature = crypto.createHmac('sha1', signKey).update(ts).digest('hex');
+    const auth = 'q-sign-algorithm=sha1&q-ak=' + SECRET_ID + '&q-sign-time=' + kt + '&q-key-time=' + kt + '&q-header-list=host&q-url-param-list=&q-signature=' + signature;
+    const opts = {
+      hostname: HOST, path: '/' + KEY, method,
+      headers: { Host: HOST, Authorization: auth, 'Content-Type': 'application/json; charset=utf-8' },
+      timeout: 15000
+    };
+    if (body) opts.headers['Content-Length'] = Buffer.byteLength(body);
+    const req = https.request(opts, (res) => {
+      let buf = '';
+      res.on('data', c => buf += c);
+      res.on('end', () => resolve({ status: res.statusCode, body: buf }));
+    });
+    req.on('error', reject);
+    req.on('timeout', () => { req.destroy(new Error('timeout')); });
+    if (body) req.write(body);
+    req.end();
+  });
 }
 
-async function saveToCOS(data,retries=3) {
-  if (!SECRET_ID || !SECRET_KEY) return false;
-  for(let i=0;i<retries;i++){
+async function loadFromCOS(retries = 3) {
+  for (let i = 0; i < retries; i++) {
     try {
-      const json = JSON.stringify(data);
-      await cos.putObject({
-        Bucket: BUCKET, Region: REGION, Key: KEY, Body: json,
-        ContentType: 'application/json; charset=utf-8',
-        CacheControl: 'no-cache',
-        Timeout: 15000
-      });
-      cache = data; return true;
-    } catch(e) {
-      if(i===retries-1){console.error('Save error:', e.message);return false;}
-      await new Promise(r=>setTimeout(r,500*Math.pow(2,i)));
-    }
+      const r = await cosRequest('GET');
+      if (r.status === 200) { cache = JSON.parse(r.body); return cache; }
+      if (r.status === 404) { cache = JSON.parse(JSON.stringify(defaultData)); return cache; }
+    } catch (e) {}
+    await sleep(500 * Math.pow(2, i));
   }
+  return cache || JSON.parse(JSON.stringify(defaultData));
+}
+
+async function saveToCOS(data, retries = 3) {
+  const body = JSON.stringify(data);
+  for (let i = 0; i < retries; i++) {
+    try {
+      const r = await cosRequest('PUT', body);
+      if (r.status === 200) { cache = data; return true; }
+    } catch (e) {}
+    await sleep(500 * Math.pow(2, i));
+  }
+  return false;
 }
 
 function setCORS(res) {
@@ -60,8 +78,6 @@ function setCORS(res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-  res.setHeader('Pragma', 'no-cache');
-  res.setHeader('Expires', '0');
 }
 
 module.exports = async (req, res) => {
@@ -82,47 +98,18 @@ module.exports = async (req, res) => {
 
 async function handleApi(req, res, url, parts, rawBody) {
   let body = {};
-  try { if (rawBody) body = JSON.parse(rawBody); } catch(e) {}
+  try { if (rawBody) body = JSON.parse(rawBody); } catch (e) {}
 
   if (url.startsWith('/api/')) {
     try {
-      if (req.method === 'GET' && url === '/api/debug') {
-        // Try direct HMAC-signed GET bypassing SDK
-        const now = Math.floor(Date.now()/1000);
-        const expired = now + 600;
-        const KeyTime = now + ';' + expired;
-        const URI = '/data.json';
-        const HttpString = 'get\n' + URI + '\n\nhost=' + BUCKET + '.cos.' + REGION + '.myqcloud.com\n';
-        const crypto = require('crypto');
-        const SignKey = crypto.createHmac('sha1', SECRET_KEY).update(KeyTime).digest('hex');
-        const HttpStringSha1 = crypto.createHash('sha1').update(HttpString).digest('hex');
-        const StringToSign = 'sha1\n' + KeyTime + '\n' + HttpStringSha1 + '\n';
-        const Signature = crypto.createHmac('sha1', SignKey).update(StringToSign).digest('hex');
-        const auth = 'q-sign-algorithm=sha1&q-ak='+SECRET_ID+'&q-sign-time='+KeyTime+'&q-key-time='+KeyTime+'&q-header-list=host&q-url-param-list=&q-signature='+Signature;
-        const https = require('https');
-        const opts = { hostname: BUCKET+'.cos.'+REGION+'.myqcloud.com', path: URI, method: 'GET', headers: { 'Authorization': auth, 'Host': BUCKET+'.cos.'+REGION+'.myqcloud.com' } };
-        const req2 = https.request(opts, (res) => {
-          let body = ''; res.on('data', c => body += c);
-          res.on('end', () => {
-            res.writeHead(200, { 'Cache-Control': 'no-store' });
-            res.end('HTTP ' + res.statusCode + ' body_len=' + body.length + ' first200=' + body.slice(0, 200));
-          });
-        });
-        req2.on('error', e => { res.writeHead(200); res.end('ERR ' + e.message); });
-        req2.end();
-        return;
-      }
       if (req.method === 'GET' && url === '/api/version') {
         const d = await loadFromCOS();
-        cache = d; // update cache
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ version: d.version, records: d.main.length }));
         return;
       }
       if (req.method === 'GET' && url === '/api/data') {
-        cache = null; // force fresh load every time
         const d = await loadFromCOS();
-        cache = d;
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(d));
         return;
@@ -167,7 +154,7 @@ async function handleApi(req, res, url, parts, rawBody) {
       }
       res.writeHead(404, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'API not found' }));
-    } catch(e) {
+    } catch (e) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: e.message || 'Server error' }));
     }
@@ -183,7 +170,7 @@ async function handleApi(req, res, url, parts, rawBody) {
       res.writeHead(200, { 'Content-Type': 'text/html' });
       res.end('<html><body><h1>OK</h1></body></html>');
     }
-  } catch(e) {
+  } catch (e) {
     res.writeHead(500);
     res.end('Error');
   }
