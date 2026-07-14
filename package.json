@@ -6,9 +6,6 @@
     "start": "node server.js"
   },
   "engines": {
-    "node": "20.x"
-  },
-  "dependencies": {
-    "cos-nodejs-sdk-v5": "^2.15.4"
+    "node": "24.x"
   }
 }
